@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>AI Loading Catch Up</title>
+  <link rel="stylesheet" href="settings.css">
+</head>
+<body>
+  <main>
+    <h1>AI Loading Catch Up</h1>
+    <label class="toggle"><input id="enabled" type="checkbox"> Enable explanations</label>
+    <label class="toggle"><input id="onlineLookup" type="checkbox"> Use online lookup for missing terms</label>
+    <p class="note">Online lookup sends only the selected term, its subject, and a short meaning hint to your local backend.</p>
+    <label for="backendUrl">Local backend</label>
+    <input id="backendUrl" type="url" value="http://127.0.0.1:4311">
+    <div class="actions">
+      <button id="save" type="button">Save</button>
+      <button id="clear" type="button" class="secondary">Clear learned definitions</button>
+    </div>
+    <p id="status" role="status" aria-live="polite"></p>
+  </main>
+  <script src="settings.js"></script>
+</body>
+</html>

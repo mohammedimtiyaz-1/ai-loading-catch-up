@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "AI Loading Catch Up",
+  "version": "0.1.0",
+  "description": "Learn up to three concepts while an AI chat answers.",
+  "permissions": ["storage"],
+  "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "AI Loading Catch Up settings",
+    "default_popup": "settings.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://127.0.0.1/*", "https://chatgpt.com/*"],
+      "js": ["shared/glossary.js", "shared/core.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}

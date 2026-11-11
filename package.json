@@ -1,0 +1,19 @@
+{
+  "name": "ai-loading-catch-up",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.14"
+  },
+  "scripts": {
+    "dev": "node --experimental-sqlite backend/server.js",
+    "test": "node --experimental-sqlite --test tests/*.test.js",
+    "test:browser": "playwright test",
+    "check": "npm test && npm run test:browser",
+    "package": "node scripts/package.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1"
+  }
+}

@@ -1,0 +1,19 @@
+:root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif; background: #f6f4fb; color: #211d2b; }
+body { margin: 0; }
+main { width: min(780px, calc(100% - 32px)); margin: 28px auto; }
+header { display: flex; align-items: start; justify-content: space-between; gap: 20px; }
+h1 { margin: 3px 0 22px; font-size: clamp(25px, 4vw, 38px); }
+.eyebrow { color: #6844df; font-size: 12px; font-weight: 800; letter-spacing: .12em; }
+#conversation { min-height: 280px; padding: 20px; background: #fff; border: 1px solid #ddd7eb; border-radius: 18px; box-shadow: 0 10px 35px #4433660f; }
+.message { max-width: 82%; padding: 12px 15px; margin: 10px 0; border-radius: 15px; white-space: pre-wrap; }
+.user { margin-left: auto; background: #6d4aff; color: #fff; }
+.assistant { background: #eeeaf6; color: #211d2b; }
+form { margin-top: 18px; }
+label { display: block; font-weight: 750; margin-bottom: 7px; }
+textarea { box-sizing: border-box; width: 100%; resize: vertical; padding: 12px; border: 1px solid #bdb4d1; border-radius: 12px; font: inherit; background: #fff; color: #211d2b; }
+.controls { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 10px; }
+button { border: 0; border-radius: 10px; padding: 10px 15px; background: #6d4aff; color: white; font: inherit; font-weight: 750; cursor: pointer; }
+button.secondary { background: transparent; color: #3e3650; border: 1px solid #aaa0bf; }
+button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible, textarea:focus-visible { outline: 3px solid #ffb000; outline-offset: 2px; }
+@media (prefers-color-scheme: dark) { :root { background: #17151d; color: #f5f1ff; } #conversation, textarea { background: #24212d; color: #f5f1ff; border-color: #494354; } .assistant { background: #302b3b; color: #f5f1ff; } button.secondary { color: #eee8fa; } }

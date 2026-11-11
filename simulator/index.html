@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI Loading Catch Up Chat Simulator</title>
+  <link rel="stylesheet" href="simulator.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div><span class="eyebrow">LOCAL TEST PAGE</span><h1>AI chat simulator</h1></div>
+      <button id="newConversation" class="secondary" type="button">New conversation</button>
+    </header>
+    <section id="conversation" aria-live="polite" aria-label="Conversation"></section>
+    <form id="composer">
+      <label for="question">Ask a question</label>
+      <textarea id="question" rows="3">How does RAG reduce hallucinations?</textarea>
+      <div class="controls">
+        <button id="send" type="submit">Send</button>
+        <button id="stop" class="secondary" type="button" disabled>Stop answer</button>
+        <button id="regenerate" class="secondary" type="button" disabled>Regenerate</button>
+      </div>
+    </form>
+  </main>
+  <script src="simulator.js"></script>
+</body>
+</html>

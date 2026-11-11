@@ -1,0 +1,8 @@
+node_modules/
+.playwright/
+dist/
+data/
+test-results/
+playwright-report/
+.env
+*.log
