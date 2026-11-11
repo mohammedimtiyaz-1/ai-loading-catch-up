@@ -1,6 +1,6 @@
 # Verification report
 
-Tested 11 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `de6416448e6fd6d59877b95d22fc0cc340d91f3b986401d2202a73a965edad31`.
+Tested 11 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `596f6d7a531ab98642ae8e4e019686f0c8e6fb55e6220441007f0f0d8b5dbad0`.
 
 ## Automated evidence
 
@@ -12,13 +12,14 @@ Tested 11 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled
 | Streaming | two question cards remained while the streamed answer added vector database as the third | Pass |
 | Lifecycle | regeneration, route navigation, disable/re-enable and duplicate prevention | Pass |
 | Accessibility | keyboard opening, Escape, focus restoration, visible popover at 200% page zoom | Pass |
-| Cached latency | submitted RAG question to visible two-term chip | 119 ms observed after Tavily integration; target was 300 ms |
+| Cached latency | submitted RAG question to visible two-term chip | 131 ms observed after Tavily integration; target was 300 ms |
 | Live Tavily lookup | `differential privacy` through the application resolver | resolved with a short explanation and supporting source; immediate repeat returned `cache: backend` |
 | Pre-submit lookup | typed `federated learning framework` without submitting | extension showed one sourced Tavily-backed card while the simulator still contained zero user messages |
+| Answer annotations | completed RAG answer with deterministic Tavily resolver responses | five answer concepts were underlined; hover exposed a one-line tooltip |
 | Package | ZIP integrity and direct unpacked files | Pass |
 | Dependencies | `npm audit --omit=dev` | 0 vulnerabilities |
 
-The final `npm run check` result was 15/15 Node checks and 5/5 installed-extension browser checks. The ZIP integrity check reported no errors.
+The final local result was 16/16 Node checks and 6/6 installed-extension browser checks. The ZIP integrity check reported no errors.
 
 ## Review and validation
 

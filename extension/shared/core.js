@@ -5,6 +5,11 @@
     finance: ["stock", "market", "fund", "invest", "portfolio", "share"],
     science: ["research", "particle", "biology", "physics", "experiment"]
   };
+  const TECHNICAL_SINGLE_WORDS = new Set([
+    "authentication", "authorization", "backpropagation", "cryptography", "decryption", "encryption",
+    "grounding", "inference", "latency", "middleware", "orchestration", "quantization", "retrieval",
+    "serialization", "tokenization", "transformer", "virtualization"
+  ]);
 
   function normalize(text) {
     return String(text || "").toLowerCase().replace(/[\u2010-\u2015]/g, "-").replace(/\s+/g, " ").trim();
@@ -88,5 +93,29 @@
     return candidates;
   }
 
-  global.ThreeKeywordsCore = { normalize, inferDomains, selectTerms, createSlots, fillAnswerSlots, unknownCandidates };
+  function answerCandidates(text, limit = 5, glossary = global.ThreeKeywordsGlossary || []) {
+    const candidates = selectTerms(text, limit, [], glossary).map((definition) => ({
+      term: definition.displayTerm,
+      domain: definition.domain,
+      senseHint: `Meaning of ${definition.displayTerm} in this answer`,
+      aliases: definition.aliases
+    }));
+    const aliases = candidates.flatMap((candidate) => candidate.aliases);
+    for (const candidate of unknownCandidates(text, limit - candidates.length, aliases)) {
+      candidates.push({ ...candidate, aliases: [candidate.term] });
+    }
+    if (candidates.length < limit) {
+      const domains = inferDomains(text);
+      for (const match of String(text || "").matchAll(/\b[a-z][a-z-]{7,}\b/gi)) {
+        const term = match[0];
+        if (!TECHNICAL_SINGLE_WORDS.has(normalize(term))) continue;
+        if (candidates.some((candidate) => candidate.aliases.some((alias) => normalize(alias) === normalize(term)))) continue;
+        candidates.push({ term, domain: domains[0] || "general", senseHint: `Meaning of ${term} in this answer`, aliases: [term] });
+        if (candidates.length === limit) break;
+      }
+    }
+    return candidates.slice(0, limit);
+  }
+
+  global.ThreeKeywordsCore = { normalize, inferDomains, selectTerms, createSlots, fillAnswerSlots, unknownCandidates, answerCandidates };
 })(globalThis);

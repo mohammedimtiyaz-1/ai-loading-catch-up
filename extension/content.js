@@ -9,11 +9,13 @@
   let answerTimer = null;
   let maxWaitTimer = null;
   let draftTimer = null;
+  let inlineTimer = null;
   let draftRevision = 0;
   let positionFrame = null;
   let baselineUserNodes = new WeakSet();
   let state = freshState();
   let ui = null;
+  const inlineDefinitions = new WeakMap();
 
   function freshState() {
     return { exchangeId: null, questionRevision: 0, answerRevision: 0, slots: [], answerNode: null, answerText: "", ended: false, isDraft: false };
@@ -107,6 +109,7 @@
 
   function beginExchange(node, questionText) {
     clearTimeout(draftTimer);
+    clearInlineAnnotations();
     const id = node.dataset.exchangeId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     state = { ...freshState(), exchangeId: id, questionRevision: 1 };
     state.slots = core.createSlots(questionText, glossary);
@@ -141,6 +144,7 @@
     state.answerNode = node;
     state.answerText = text;
     state.answerRevision ||= 1;
+    scheduleInlineAnnotations(node, text, state.exchangeId, state.answerRevision);
     const before = state.slots.length;
     const ids = state.slots.map((slot) => slot.definition?.canonicalTermId).filter(Boolean);
     const definitions = core.selectTerms(text, 3 - state.slots.length, ids, glossary);
@@ -178,6 +182,8 @@
     route = location.href;
     state = freshState();
     clearTimeout(draftTimer);
+    clearTimeout(inlineTimer);
+    clearInlineAnnotations();
     baseline();
     render();
   }
@@ -213,8 +219,10 @@
         p { margin: 0; }
         .muted { color: #6d6878; }
         a { display: inline-block; margin-top: 6px; color: #5533dd; }
+        .term-tooltip { display: none; position: fixed; z-index: 2147483647; width: min(290px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px 12px; border: 1px solid #d9d4e8; border-radius: 10px; color: #17151f; background: #fff; box-shadow: 0 10px 34px #0004; font: 13px/1.4 system-ui, sans-serif; pointer-events: none; }
+        .term-tooltip.show { display: block; }
         button:focus-visible, a:focus-visible { outline: 3px solid #ffb000; outline-offset: 2px; }
-        @media (prefers-color-scheme: dark) { .panel { background: #24212d; color: #f7f4ff; border-color: #494354; } .card { border-color: #494354; } .muted { color: #c6bfce; } a { color: #baaaff; } }
+        @media (prefers-color-scheme: dark) { .panel, .term-tooltip { background: #24212d; color: #f7f4ff; border-color: #494354; } .card { border-color: #494354; } .muted { color: #c6bfce; } a { color: #baaaff; } }
         @media (prefers-reduced-motion: no-preference) { .chip.show { animation: pop .18s ease-out; } @keyframes pop { from { transform: scale(.92); opacity: .5; } } }
       </style>
       <div class="wrap">
@@ -223,6 +231,7 @@
           <div class="cards" aria-live="polite"></div>
         </section>
         <button class="chip" type="button" aria-expanded="false" aria-haspopup="dialog">0 terms</button>
+        <aside class="term-tooltip" role="tooltip"></aside>
       </div>`;
     document.documentElement.append(host);
     const chip = shadow.querySelector(".chip");
@@ -238,28 +247,37 @@
         if (open) close.focus(); else chip.focus();
       }
     }
-    ui = { host, shadow, chip, panel, cards: shadow.querySelector(".cards"), wrap: shadow.querySelector(".wrap"), setOpen };
+    ui = { host, shadow, chip, panel, cards: shadow.querySelector(".cards"), wrap: shadow.querySelector(".wrap"), tooltip: shadow.querySelector(".term-tooltip"), setOpen };
+    document.addEventListener("pointerover", showInlineTooltip, true);
+    document.addEventListener("pointerout", hideInlineTooltip, true);
+    document.addEventListener("focusin", showInlineTooltip, true);
+    document.addEventListener("focusout", hideInlineTooltip, true);
     render();
   }
 
   function unmount() {
+    document.removeEventListener("pointerover", showInlineTooltip, true);
+    document.removeEventListener("pointerout", hideInlineTooltip, true);
+    document.removeEventListener("focusin", showInlineTooltip, true);
+    document.removeEventListener("focusout", hideInlineTooltip, true);
     ui?.host.remove();
     ui = null;
     clearTimeout(answerTimer);
     clearTimeout(maxWaitTimer);
     clearTimeout(draftTimer);
+    clearTimeout(inlineTimer);
+    clearInlineAnnotations();
   }
 
   function render() {
     if (!ui) return;
-    const previousCount = Number(ui.host.dataset.termCount || 0);
     const count = state.slots.length;
     ui.host.dataset.termCount = String(count);
     ui.chip.textContent = `${count} ${count === 1 ? "term" : "terms"}`;
     ui.chip.classList.toggle("show", count > 0);
     if (!count) ui.panel.classList.remove("open");
     ui.cards.replaceChildren(...state.slots.map(cardFor));
-    if (count > 0 && previousCount === 0) ui.setOpen(true, false);
+    if (count > 0) ui.setOpen(true, false);
     schedulePosition();
   }
 
@@ -276,7 +294,7 @@
     const pageZoom = Number.parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     ui.host.style.zoom = String(1 / pageZoom);
     const composer = document.querySelector(selectors().composer);
-    const reference = state.answerNode || [...userMessageNodes()].at(-1) || composer;
+    const reference = composer || state.answerNode || [...userMessageNodes()].at(-1);
     if (!reference) return;
     const rect = reference.getBoundingClientRect();
     const composerRect = composer?.getBoundingClientRect();
@@ -312,6 +330,89 @@
       card.append(link);
     }
     return card;
+  }
+
+  function scheduleInlineAnnotations(node, text, exchangeId, answerRevision) {
+    clearTimeout(inlineTimer);
+    inlineTimer = setTimeout(() => annotateAnswer(node, text, exchangeId, answerRevision), 1200);
+  }
+
+  async function annotateAnswer(node, text, exchangeId, answerRevision) {
+    if (!settings.onlineLookup || !node?.isConnected || visibleText(node) !== text) return;
+    const candidates = core.answerCandidates(text, 5, glossary);
+    if (!candidates.length) return;
+    const chunks = [];
+    for (let index = 0; index < candidates.length; index += 3) chunks.push(candidates.slice(index, index + 3));
+    const responses = await Promise.all(chunks.map((chunk) => send({
+      type: "definition:resolve",
+      payload: {
+        requestId: crypto.randomUUID(),
+        terms: chunk.map(({ term, domain, senseHint }) => ({ term, domain, senseHint }))
+      }
+    })));
+    if (state.exchangeId !== exchangeId || state.answerRevision !== answerRevision || state.answerNode !== node || visibleText(node) !== text) return;
+    const results = responses.flatMap((response) => response?.results || []);
+    clearInlineAnnotations(node);
+    candidates.forEach((candidate, index) => {
+      const definition = results[index]?.status === "resolved" ? results[index].definition : null;
+      if (definition) underlineFirstOccurrence(node, candidate.aliases, definition);
+    });
+  }
+
+  function underlineFirstOccurrence(root, aliases, definition) {
+    const ordered = [...new Set(aliases)].sort((a, b) => b.length - a.length);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let textNode;
+    while ((textNode = walker.nextNode())) {
+      const parent = textNode.parentElement;
+      if (!parent || parent.closest('[data-ai-loading-catch-up-term], a, button, code, pre, input, textarea, [contenteditable="true"]')) continue;
+      for (const alias of ordered) {
+        const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const match = new RegExp(`(^|[^a-z0-9])(${escaped})(?=$|[^a-z0-9])`, "i").exec(textNode.data);
+        if (!match) continue;
+        const start = match.index + match[1].length;
+        const before = textNode.data.slice(0, start);
+        const termText = textNode.data.slice(start, start + match[2].length);
+        const after = textNode.data.slice(start + match[2].length);
+        const mark = document.createElement("span");
+        mark.dataset.aiLoadingCatchUpTerm = "true";
+        mark.tabIndex = 0;
+        mark.textContent = termText;
+        mark.style.textDecoration = "underline dotted #6d4aff 2px";
+        mark.style.textUnderlineOffset = "3px";
+        mark.style.cursor = "help";
+        mark.setAttribute("aria-label", `${termText}: ${definition.oneLiner}`);
+        inlineDefinitions.set(mark, definition);
+        textNode.replaceWith(document.createTextNode(before), mark, document.createTextNode(after));
+        return true;
+      }
+    }
+    return false;
+  }
+
+  function clearInlineAnnotations(root = document) {
+    for (const mark of root.querySelectorAll?.('[data-ai-loading-catch-up-term="true"]') || []) mark.replaceWith(document.createTextNode(mark.textContent || ""));
+    if (ui?.tooltip) ui.tooltip.classList.remove("show");
+  }
+
+  function showInlineTooltip(event) {
+    const mark = event.target?.closest?.('[data-ai-loading-catch-up-term="true"]');
+    const definition = mark && inlineDefinitions.get(mark);
+    if (!definition || !ui?.tooltip) return;
+    ui.tooltip.textContent = definition.oneLiner;
+    ui.tooltip.classList.add("show");
+    const rect = mark.getBoundingClientRect();
+    const width = Math.min(290, window.innerWidth - 24);
+    const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
+    const top = rect.bottom + 98 < window.innerHeight ? rect.bottom + 8 : Math.max(12, rect.top - 98);
+    ui.tooltip.style.width = `${width}px`;
+    ui.tooltip.style.left = `${left}px`;
+    ui.tooltip.style.top = `${top}px`;
+  }
+
+  function hideInlineTooltip(event) {
+    const mark = event.target?.closest?.('[data-ai-loading-catch-up-term="true"]');
+    if (mark && ui?.tooltip) ui.tooltip.classList.remove("show");
   }
 
   function isSafeSource(url) {

@@ -57,3 +57,12 @@ test("unknown extraction preserves a specific multiword concept", async () => {
   assert.equal(candidates[0].term, "federated learning framework");
   assert.equal(candidates[0].domain, "ai");
 });
+
+test("answer extraction finds up to five useful concepts for inline explanations", async () => {
+  const { glossary, core } = await loadCore();
+  const text = "RAG uses embeddings in a vector database for retrieval and grounding to reduce hallucinations.";
+  const candidates = core.answerCandidates(text, 5, glossary);
+  assert.equal(candidates.length, 5);
+  assert.ok(candidates.some((candidate) => candidate.term.toLowerCase() === "retrieval"));
+  assert.ok(candidates.every((candidate) => candidate.aliases.length > 0));
+});

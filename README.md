@@ -1,10 +1,12 @@
 # AI Loading Catch Up
 
-AI Loading Catch Up is a local Chrome extension that explains up to three difficult concepts while the user waits for an AI-chat answer. It uses a bundled glossary first, stores learned definitions locally, and can optionally ask a loopback-only backend to research cache misses through Tavily.
+AI Loading Catch Up is a local Chrome extension that explains difficult concepts while the user waits for an AI-chat answer. Its open panel stays beside the composer for question concepts. After an answer stabilizes, it underlines up to five additional Tavily-backed concepts in the answer and shows a one-line explanation on hover or keyboard focus.
 
-![AI Loading Catch Up showing a live Tavily-backed definition before submission](docs/screenshots/ai-loading-catch-up-tavily.png)
+![AI Loading Catch Up showing five underlined answer concepts and a Tavily-backed hover explanation](docs/screenshots/ai-loading-catch-up-inline-tavily.png)
 
 The extension analyzes a supported chat composer after a short pause while typing. Cached terms appear immediately, and complete unknown concepts can begin online resolution before the question is submitted when Online lookup is enabled.
+
+Answer annotations appear only after the streamed text remains stable. The extension skips links, code, controls, and editable content when adding underlines. Tavily requests contain only candidate terms, domains, and short meaning hints; the transcript remains in the page.
 
 ## Requirements
 

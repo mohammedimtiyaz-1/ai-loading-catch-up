@@ -30,7 +30,7 @@ test("question terms and streaming answer appear in the installed extension", as
   const cachedLatencyMs = Date.now() - startedAt;
   console.log(`cached question explanation latency: ${cachedLatencyMs} ms`);
   expect(cachedLatencyMs).toBeLessThan(300);
-  await chip.click();
+  await expect(host.locator(".panel")).toBeVisible();
   await expect(host.locator("h3").filter({ hasText: "RAG" })).toHaveCount(1);
   await expect(host.locator("h3").filter({ hasText: "Hallucination" })).toHaveCount(1);
   await expect(chip).toHaveText("3 terms", { timeout: 5000 });
@@ -64,6 +64,49 @@ test("ordinary question does not manufacture terms", async () => {
   await page.waitForTimeout(1200);
   await expect(host.locator(".chip")).not.toHaveClass(/show/);
   await page.close();
+});
+
+test("completed answers underline five Tavily-backed terms with hover explanations", async () => {
+  await context.route("http://127.0.0.1:4311/v1/definitions/resolve", async (route) => {
+    const body = route.request().postDataJSON();
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        requestId: body.requestId,
+        results: body.terms.map((candidate) => ({
+          status: "resolved",
+          definition: {
+            canonicalTermId: candidate.term.toLowerCase().replace(/\W+/g, "-"),
+            displayTerm: candidate.term,
+            aliases: [candidate.term],
+            domain: candidate.domain,
+            senseId: "test",
+            language: "en",
+            explanationVersion: 1,
+            oneLiner: `${candidate.term} has a short sourced explanation from Tavily.`,
+            sources: [{ title: "Tavily test source", url: "https://example.com/source" }],
+            refreshAfter: new Date(Date.now() + 86400000).toISOString()
+          }
+        }))
+      })
+    });
+  });
+  let [worker] = context.serviceWorkers();
+  if (!worker) worker = await context.waitForEvent("serviceworker");
+  await worker.evaluate(() => chrome.storage.local.set({ onlineLookup: true }));
+  const page = await context.newPage();
+  await page.goto("http://127.0.0.1:4311/");
+  await page.locator("#question").fill("How does RAG reduce hallucinations?");
+  await page.locator("#send").click();
+  const marks = page.locator('[data-ai-loading-catch-up-term="true"]');
+  await expect(marks).toHaveCount(5, { timeout: 10000 });
+  await marks.first().hover();
+  const host = page.locator("#ai-loading-catch-up-root");
+  await expect(host.locator(".term-tooltip")).toBeVisible();
+  await expect(host.locator(".term-tooltip")).not.toBeEmpty();
+  await page.close();
+  await worker.evaluate(() => chrome.storage.local.set({ onlineLookup: false }));
+  await context.unroute("http://127.0.0.1:4311/v1/definitions/resolve");
 });
 
 test("popover supports Escape, focus restoration, regeneration, navigation and zoom", async () => {

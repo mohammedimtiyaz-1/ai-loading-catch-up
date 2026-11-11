@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "AI Loading Catch Up",
   "version": "0.1.0",
-  "description": "Learn up to three concepts while an AI chat answers.",
+  "description": "Explain question concepts and underline five sourced concepts in AI-chat answers.",
   "permissions": ["storage"],
   "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],
   "background": {
