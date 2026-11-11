@@ -4,7 +4,7 @@
 - Status: complete
 - Requested mode: implementation
 - Current delivery stage: local delivery complete
-- Integrated revision or immutable artifact identity: ZIP SHA-256 `c4d63a01800cab3ca224c12b3d3288f4960d51b176c05c2a0495aa7dc7d80b0d`
+- Integrated revision or immutable artifact identity: ZIP SHA-256 `de6416448e6fd6d59877b95d22fc0cc340d91f3b986401d2202a73a965edad31`
 - Backlog/sprint/architecture links: `../project.md`, `../../docs/architecture.md`
 
 ## Request and scope
@@ -45,8 +45,8 @@ The simulator detects a submitted question, shows at most three contextual defin
 
 | Criterion/check | Revision | Environment | Result | Evidence or limitation |
 | --- | --- | --- | --- | --- |
-| Node tests | packaged revision | local Node 22.14 | pass | 12/12 |
-| Playwright extension tests | packaged revision | bundled Chromium | pass | 4/4; cached chip observed at 119 ms |
+| Node tests | packaged revision | local Node 22.14 | pass | 15/15 |
+| Playwright extension tests | packaged revision | bundled Chromium | pass | 5/5; cached chip observed at 111 ms and draft terms appeared before submission |
 | Live Tavily application lookup | local configured backend | pass | resolved `differential privacy`; repeat served from backend cache |
 | Packaging inspection | SHA above | local | pass | ZIP integrity clean; 16 KiB archive |
 | Dependency audit | lockfile revision | npm | pass | 0 vulnerabilities |

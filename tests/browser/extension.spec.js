@@ -38,6 +38,16 @@ test("question terms and streaming answer appear in the installed extension", as
   await page.close();
 });
 
+test("draft terms appear before the question is submitted", async () => {
+  const page = await context.newPage();
+  await page.goto("http://127.0.0.1:4311/");
+  await page.locator("#question").fill("How does RAG reduce hallucinations?");
+  const host = page.locator("#ai-loading-catch-up-root");
+  await expect(host.locator(".chip")).toHaveText("2 terms", { timeout: 2000 });
+  await expect(page.locator('[data-role="user-message"]')).toHaveCount(0);
+  await page.close();
+});
+
 test("ordinary question does not manufacture terms", async () => {
   const page = await context.newPage();
   await page.goto("http://127.0.0.1:4311/");

@@ -8,12 +8,14 @@
   let routeTimer = null;
   let answerTimer = null;
   let maxWaitTimer = null;
+  let draftTimer = null;
+  let draftRevision = 0;
   let baselineUserNodes = new WeakSet();
   let state = freshState();
   let ui = null;
 
   function freshState() {
-    return { exchangeId: null, questionRevision: 0, answerRevision: 0, slots: [], answerNode: null, answerText: "", ended: false };
+    return { exchangeId: null, questionRevision: 0, answerRevision: 0, slots: [], answerNode: null, answerText: "", ended: false, isDraft: false };
   }
 
   function send(message) {
@@ -28,6 +30,7 @@
     baseline();
     if (settings.enabled) mount();
     observe();
+    document.addEventListener("input", onComposerInput, true);
     chrome.storage.onChanged.addListener(onSettingsChanged);
     routeTimer = setInterval(checkRoute, 700);
   }
@@ -39,11 +42,12 @@
 
   function selectors() {
     if (location.hostname === "127.0.0.1") {
-      return { user: '[data-role="user-message"]', assistant: '[data-role="assistant-message"]' };
+      return { user: '[data-role="user-message"]', assistant: '[data-role="assistant-message"]', composer: "#question" };
     }
     return {
       user: '[data-message-author-role="user"], article[data-turn="user"]',
-      assistant: '[data-message-author-role="assistant"], article[data-turn="assistant"]'
+      assistant: '[data-message-author-role="assistant"], article[data-turn="assistant"]',
+      composer: '#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][data-testid="prompt-textarea"]'
     };
   }
 
@@ -59,7 +63,28 @@
   function handleMutations() {
     if (!settings.enabled) return;
     checkForQuestion();
-    if (state.exchangeId) scheduleAnswerProcessing();
+    if (state.exchangeId && !state.isDraft) scheduleAnswerProcessing();
+  }
+
+  function onComposerInput(event) {
+    if (!settings.enabled) return;
+    const composer = event.target?.closest?.(selectors().composer);
+    if (!composer) return;
+    clearTimeout(draftTimer);
+    draftTimer = setTimeout(() => processDraft(composer), 450);
+  }
+
+  function processDraft(composer) {
+    const text = String(composer?.value ?? visibleText(composer)).replace(/\s+/g, " ").trim();
+    if (!text) {
+      if (state.isDraft) { state = freshState(); render(); }
+      return;
+    }
+    const revision = ++draftRevision;
+    state = { ...freshState(), exchangeId: `draft-${revision}`, questionRevision: revision, isDraft: true };
+    state.slots = core.createSlots(text, glossary);
+    render();
+    if (settings.onlineLookup && state.slots.length < 2) resolveUnknown(text, "question", 2 - state.slots.length);
   }
 
   function checkForQuestion() {
@@ -77,6 +102,7 @@
   }
 
   function beginExchange(node, questionText) {
+    clearTimeout(draftTimer);
     const id = node.dataset.exchangeId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     state = { ...freshState(), exchangeId: id, questionRevision: 1 };
     state.slots = core.createSlots(questionText, glossary);
@@ -147,6 +173,7 @@
     if (location.href === route) return;
     route = location.href;
     state = freshState();
+    clearTimeout(draftTimer);
     baseline();
     render();
   }
@@ -214,6 +241,7 @@
     ui = null;
     clearTimeout(answerTimer);
     clearTimeout(maxWaitTimer);
+    clearTimeout(draftTimer);
   }
 
   function render() {

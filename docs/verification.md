@@ -1,6 +1,6 @@
 # Verification report
 
-Tested 11 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `c4d63a01800cab3ca224c12b3d3288f4960d51b176c05c2a0495aa7dc7d80b0d`.
+Tested 11 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `de6416448e6fd6d59877b95d22fc0cc340d91f3b986401d2202a73a965edad31`.
 
 ## Automated evidence
 
@@ -14,10 +14,11 @@ Tested 11 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled
 | Accessibility | keyboard opening, Escape, focus restoration, visible popover at 200% page zoom | Pass |
 | Cached latency | submitted RAG question to visible two-term chip | 119 ms observed after Tavily integration; target was 300 ms |
 | Live Tavily lookup | `differential privacy` through the application resolver | resolved with a short explanation and supporting source; immediate repeat returned `cache: backend` |
+| Pre-submit lookup | typed `federated learning framework` without submitting | extension showed one sourced Tavily-backed card while the simulator still contained zero user messages |
 | Package | ZIP integrity and direct unpacked files | Pass |
 | Dependencies | `npm audit --omit=dev` | 0 vulnerabilities |
 
-The final `npm run check` result was 12/12 Node checks and 4/4 installed-extension browser checks. The ZIP integrity check reported no errors.
+The final `npm run check` result was 15/15 Node checks and 5/5 installed-extension browser checks. The ZIP integrity check reported no errors.
 
 ## Review and validation
 
