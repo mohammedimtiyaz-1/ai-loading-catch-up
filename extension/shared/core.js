@@ -1,7 +1,7 @@
 (function initCore(global) {
   const DOMAIN_CUES = {
-    ai: ["ai", "model", "llm", "prompt", "generation", "embedding", "context", "rag"],
-    security: ["auth", "authentication", "authorization", "oauth", "login", "credential", "bearer", "security"],
+    ai: ["ai", "model", "llm", "prompt", "generation", "embedding", "context", "rag", "learning", "training", "neural"],
+    security: ["auth", "authentication", "authorization", "oauth", "login", "credential", "bearer", "security", "privacy", "private"],
     finance: ["stock", "market", "fund", "invest", "portfolio", "share"],
     science: ["research", "particle", "biology", "physics", "experiment"]
   };
@@ -76,7 +76,7 @@
     const excluded = new Set(knownAliases.map(normalize));
     const candidates = [];
     const acronymPattern = /\b([A-Z][A-Z0-9]{2,8})\b/g;
-    const phrasePattern = /\b([a-z][a-z-]{4,}\s+(?:model|database|protocol|algorithm|architecture|framework|mechanism))\b/gi;
+    const phrasePattern = /\b((?:[a-z][a-z-]{3,}\s+){1,3}(?:model|database|protocol|algorithm|architecture|framework|mechanism))\b/gi;
     for (const pattern of [acronymPattern, phrasePattern]) {
       for (const match of original.matchAll(pattern)) {
         const term = match[1].trim();

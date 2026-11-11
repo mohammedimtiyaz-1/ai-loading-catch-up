@@ -29,6 +29,14 @@ test("provider uses the first short sourced sentence from a basic Tavily answer"
   assert.equal(result.definition.oneLiner, "A semantic cache stores reusable results for similar requests.");
 });
 
+test("provider rejects a source matching only a generic concept suffix", () => {
+  const result = definitionFromProvider(
+    { term: "federated learning framework", domain: "ai", senseHint: "distributed model training" },
+    { answer: "A federated learning framework coordinates model training across separate devices.", results: [{ title: "General learning framework", url: "https://example.com/framework", content: "A framework for learning." }] }
+  );
+  assert.equal(result.status, "missing");
+});
+
 test("missing provider key is explicit and costs no budget", async () => {
   const cache = new DefinitionCache();
   const result = await resolveRequest({ requestId: "1", terms: [candidate] }, { cache, apiKey: "" });

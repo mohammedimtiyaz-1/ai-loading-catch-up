@@ -17,12 +17,13 @@ export function definitionFromProvider(candidate, data) {
   const answer = String(data?.answer || "").replace(/\s+/g, " ").trim();
   const oneLiner = answer.match(/^.*?[.!?](?=\s|$)/)?.[0]?.trim() || "";
   const words = oneLiner ? oneLiner.split(/\s+/) : [];
-  const significantTerms = String(candidate.term).toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length >= 4);
+  const genericKinds = new Set(["model", "database", "protocol", "algorithm", "architecture", "framework", "mechanism"]);
+  const significantTerms = String(candidate.term).toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length >= 4 && !genericKinds.has(word));
   const source = data?.results?.find((item) => {
     try {
       if (!item.title || !["http:", "https:"].includes(new URL(item.url).protocol)) return false;
       const searchable = `${item.title} ${item.content || ""}`.toLowerCase();
-      return significantTerms.length === 0 || significantTerms.some((word) => searchable.includes(word));
+      return significantTerms.length === 0 || significantTerms.every((word) => searchable.includes(word));
     } catch { return false; }
   });
   if (!oneLiner || words.length > 40 || !/[.!?]$/.test(oneLiner) || !source) return { status: "missing" };

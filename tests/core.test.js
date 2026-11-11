@@ -50,3 +50,10 @@ test("answer fills only remaining slots without replacing question slots", async
   assert.deepEqual(Array.from(filled.slice(0, 2), (slot) => slot.definition.canonicalTermId).sort(), ["hallucination", "rag"]);
   assert.equal(filled[2].definition.canonicalTermId, "vector-database");
 });
+
+test("unknown extraction preserves a specific multiword concept", async () => {
+  const { core } = await loadCore();
+  const candidates = core.unknownCandidates("How does a federated learning framework protect private training data?", 1);
+  assert.equal(candidates[0].term, "federated learning framework");
+  assert.equal(candidates[0].domain, "ai");
+});
