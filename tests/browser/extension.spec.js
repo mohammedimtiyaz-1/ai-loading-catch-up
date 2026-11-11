@@ -44,7 +44,14 @@ test("draft terms appear before the question is submitted", async () => {
   await page.locator("#question").fill("How does RAG reduce hallucinations?");
   const host = page.locator("#ai-loading-catch-up-root");
   await expect(host.locator(".chip")).toHaveText("2 terms", { timeout: 2000 });
+  await expect(host.locator(".panel")).toBeVisible();
   await expect(page.locator('[data-role="user-message"]')).toHaveCount(0);
+  const positions = await page.evaluate(() => {
+    const content = document.querySelector("#question").getBoundingClientRect();
+    const wrap = document.querySelector("#ai-loading-catch-up-root").shadowRoot.querySelector(".wrap").getBoundingClientRect();
+    return { contentRight: content.right, panelLeft: wrap.left };
+  });
+  expect(positions.panelLeft).toBeGreaterThanOrEqual(positions.contentRight);
   await page.close();
 });
 
@@ -66,6 +73,12 @@ test("popover supports Escape, focus restoration, regeneration, navigation and z
   const host = page.locator("#ai-loading-catch-up-root");
   const chip = host.locator(".chip");
   await expect(chip).toHaveText("2 terms");
+  await expect(host.locator(".panel")).toBeVisible();
+  const conversationBox = await page.locator("#conversation").boundingBox();
+  const panelBox = await host.locator(".panel").boundingBox();
+  expect(panelBox.x).toBeGreaterThanOrEqual(conversationBox.x + conversationBox.width);
+  await host.locator(".close").click();
+  await expect(chip).toBeFocused();
   await chip.click();
   await expect(host.locator(".close")).toBeFocused();
   await host.locator(".close").press("Escape");

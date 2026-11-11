@@ -10,6 +10,7 @@
   let maxWaitTimer = null;
   let draftTimer = null;
   let draftRevision = 0;
+  let positionFrame = null;
   let baselineUserNodes = new WeakSet();
   let state = freshState();
   let ui = null;
@@ -31,6 +32,8 @@
     if (settings.enabled) mount();
     observe();
     document.addEventListener("input", onComposerInput, true);
+    document.addEventListener("scroll", schedulePosition, true);
+    window.addEventListener("resize", schedulePosition);
     chrome.storage.onChanged.addListener(onSettingsChanged);
     routeTimer = setInterval(checkRoute, 700);
   }
@@ -64,6 +67,7 @@
     if (!settings.enabled) return;
     checkForQuestion();
     if (state.exchangeId && !state.isDraft) scheduleAnswerProcessing();
+    schedulePosition();
   }
 
   function onComposerInput(event) {
@@ -194,11 +198,11 @@
     shadow.innerHTML = `
       <style>
         :host { all: initial; }
-        .wrap { position: fixed; right: 20px; bottom: 22px; z-index: 2147483646; font: 14px/1.42 system-ui, sans-serif; color: #17151f; }
+        .wrap { position: fixed; top: 24px; left: 24px; z-index: 2147483646; width: 320px; max-width: calc(100vw - 24px); font: 14px/1.42 system-ui, sans-serif; color: #17151f; }
         button { font: inherit; }
-        .chip { display: none; border: 0; border-radius: 999px; padding: 10px 15px; color: white; background: #6d4aff; box-shadow: 0 6px 22px #0003; cursor: pointer; font-weight: 750; }
+        .chip { display: none; margin: 0 0 8px; border: 0; border-radius: 999px; padding: 8px 12px; color: white; background: #6d4aff; box-shadow: 0 6px 22px #0003; cursor: pointer; font-weight: 750; }
         .chip.show { display: block; }
-        .panel { display: none; position: absolute; right: 0; bottom: 50px; width: min(360px, calc(100vw - 32px)); max-height: min(460px, calc(100vh - 100px)); overflow: auto; box-sizing: border-box; padding: 12px; border: 1px solid #d9d4e8; border-radius: 16px; background: #fff; box-shadow: 0 16px 50px #0003; }
+        .panel { display: none; width: 100%; max-height: min(460px, calc(100vh - 96px)); overflow: auto; box-sizing: border-box; padding: 12px; border: 1px solid #d9d4e8; border-radius: 16px; background: #fff; box-shadow: 0 16px 50px #0003; }
         .panel.open { display: block; }
         .header { display: flex; justify-content: space-between; align-items: center; margin: 0 0 8px; }
         h2 { font-size: 15px; margin: 0; }
@@ -227,12 +231,14 @@
     chip.addEventListener("click", () => setOpen(!panel.classList.contains("open")));
     close.addEventListener("click", () => setOpen(false));
     shadow.addEventListener("keydown", (event) => { if (event.key === "Escape") setOpen(false); });
-    function setOpen(open) {
+    function setOpen(open, moveFocus = true) {
       panel.classList.toggle("open", open);
       chip.setAttribute("aria-expanded", String(open));
-      if (open) close.focus(); else chip.focus();
+      if (moveFocus) {
+        if (open) close.focus(); else chip.focus();
+      }
     }
-    ui = { host, shadow, chip, panel, cards: shadow.querySelector(".cards") };
+    ui = { host, shadow, chip, panel, cards: shadow.querySelector(".cards"), wrap: shadow.querySelector(".wrap"), setOpen };
     render();
   }
 
@@ -246,11 +252,44 @@
 
   function render() {
     if (!ui) return;
+    const previousCount = Number(ui.host.dataset.termCount || 0);
     const count = state.slots.length;
+    ui.host.dataset.termCount = String(count);
     ui.chip.textContent = `${count} ${count === 1 ? "term" : "terms"}`;
     ui.chip.classList.toggle("show", count > 0);
     if (!count) ui.panel.classList.remove("open");
     ui.cards.replaceChildren(...state.slots.map(cardFor));
+    if (count > 0 && previousCount === 0) ui.setOpen(true, false);
+    schedulePosition();
+  }
+
+  function schedulePosition() {
+    if (!ui || positionFrame) return;
+    positionFrame = requestAnimationFrame(() => {
+      positionFrame = null;
+      positionBesideContent();
+    });
+  }
+
+  function positionBesideContent() {
+    if (!ui) return;
+    const pageZoom = Number.parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    ui.host.style.zoom = String(1 / pageZoom);
+    const composer = document.querySelector(selectors().composer);
+    const reference = state.answerNode || [...userMessageNodes()].at(-1) || composer;
+    if (!reference) return;
+    const rect = reference.getBoundingClientRect();
+    const composerRect = composer?.getBoundingClientRect();
+    const contentRight = Math.max(rect.right, composerRect?.right || 0);
+    const gap = 16;
+    const edge = 12;
+    const available = Math.floor(window.innerWidth - contentRight - gap - edge);
+    const width = Math.max(180, Math.min(340, available));
+    const left = Math.min(window.innerWidth - width - edge, contentRight + gap);
+    const top = Math.max(edge, Math.min(rect.top, window.innerHeight - 120));
+    ui.wrap.style.width = `${width}px`;
+    ui.wrap.style.left = `${Math.max(edge, left)}px`;
+    ui.wrap.style.top = `${top}px`;
   }
 
   function cardFor(slot) {
