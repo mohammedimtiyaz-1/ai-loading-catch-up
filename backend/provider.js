@@ -14,10 +14,16 @@ export async function searchDefinition(candidate, { apiKey, signal }) {
 }
 
 export function definitionFromProvider(candidate, data) {
-  const oneLiner = String(data?.answer || "").replace(/\s+/g, " ").trim();
+  const answer = String(data?.answer || "").replace(/\s+/g, " ").trim();
+  const oneLiner = answer.match(/^.*?[.!?](?=\s|$)/)?.[0]?.trim() || "";
   const words = oneLiner ? oneLiner.split(/\s+/) : [];
+  const significantTerms = String(candidate.term).toLowerCase().split(/[^a-z0-9]+/).filter((word) => word.length >= 4);
   const source = data?.results?.find((item) => {
-    try { return item.title && ["http:", "https:"].includes(new URL(item.url).protocol); } catch { return false; }
+    try {
+      if (!item.title || !["http:", "https:"].includes(new URL(item.url).protocol)) return false;
+      const searchable = `${item.title} ${item.content || ""}`.toLowerCase();
+      return significantTerms.length === 0 || significantTerms.some((word) => searchable.includes(word));
+    } catch { return false; }
   });
   if (!oneLiner || words.length > 40 || !/[.!?]$/.test(oneLiner) || !source) return { status: "missing" };
   const now = new Date();

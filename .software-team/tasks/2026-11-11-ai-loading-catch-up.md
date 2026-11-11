@@ -46,7 +46,8 @@ The simulator detects a submitted question, shows at most three contextual defin
 | Criterion/check | Revision | Environment | Result | Evidence or limitation |
 | --- | --- | --- | --- | --- |
 | Node tests | packaged revision | local Node 22.14 | pass | 12/12 |
-| Playwright extension tests | packaged revision | bundled Chromium | pass | 4/4; cached chip observed at 77 ms |
+| Playwright extension tests | packaged revision | bundled Chromium | pass | 4/4; cached chip observed at 119 ms |
+| Live Tavily application lookup | local configured backend | pass | resolved `differential privacy`; repeat served from backend cache |
 | Packaging inspection | SHA above | local | pass | ZIP integrity clean; 16 KiB archive |
 | Dependency audit | lockfile revision | npm | pass | 0 vulnerabilities |
 

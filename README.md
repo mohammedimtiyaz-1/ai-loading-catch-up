@@ -42,4 +42,4 @@ npm run package
 - English and desktop Chromium are the only supported targets.
 - The backend has no public authentication because it only accepts loopback traffic. Do not expose it publicly.
 - Node 22 prints an experimental SQLite warning. Node 26 is the intended long-term runtime.
-- A real Tavily request was not consumed during automated checks; missing credentials and provider behavior are covered with deterministic tests.
+- A real Tavily lookup was verified locally through the application backend. Automated tests continue to use deterministic provider doubles so routine checks do not consume credits.

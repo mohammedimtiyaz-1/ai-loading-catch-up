@@ -7,7 +7,7 @@
     "node": ">=22.14"
   },
   "scripts": {
-    "dev": "node --experimental-sqlite backend/server.js",
+    "dev": "node --env-file-if-exists=.env --experimental-sqlite backend/server.js",
     "test": "node --experimental-sqlite --test tests/*.test.js",
     "test:browser": "playwright test",
     "check": "npm test && npm run test:browser",

@@ -15,9 +15,18 @@ test("request validation rejects unbounded or incomplete payloads", () => {
 
 test("provider output requires short complete answer and valid source", () => {
   assert.equal(definitionFromProvider(candidate, { answer: "A reusable result.", results: [] }).status, "missing");
-  const result = definitionFromProvider(candidate, { answer: "A stored result reused for similar requests.", results: [{ title: "Source", url: "https://example.com/cache" }] });
+  const result = definitionFromProvider(candidate, { answer: "A stored result reused for similar requests.", results: [{ title: "Semantic cache source", url: "https://example.com/cache", content: "A semantic cache stores reusable AI results." }] });
   assert.equal(result.status, "resolved");
   assert.equal(result.definition.sources[0].url, "https://example.com/cache");
+});
+
+test("provider uses the first short sourced sentence from a basic Tavily answer", () => {
+  const result = definitionFromProvider(candidate, {
+    answer: "A semantic cache stores reusable results for similar requests. Additional detail can follow without entering the one-line interface.",
+    results: [{ title: "Semantic caching guide", url: "https://example.com/semantic-cache", content: "Semantic cache reuse for AI requests." }]
+  });
+  assert.equal(result.status, "resolved");
+  assert.equal(result.definition.oneLiner, "A semantic cache stores reusable results for similar requests.");
 });
 
 test("missing provider key is explicit and costs no budget", async () => {
