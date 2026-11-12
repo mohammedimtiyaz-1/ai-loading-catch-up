@@ -49,10 +49,43 @@ test("draft terms appear before the question is submitted", async () => {
   const positions = await page.evaluate(() => {
     const content = document.querySelector("#question").getBoundingClientRect();
     const wrap = document.querySelector("#ai-loading-catch-up-root").shadowRoot.querySelector(".wrap").getBoundingClientRect();
-    return { contentRight: content.right, panelLeft: wrap.left };
+    const host = document.querySelector("#ai-loading-catch-up-root");
+    return { contentRight: content.right, contentTop: content.top, panelLeft: wrap.left, panelTop: wrap.top, placement: host.dataset.placement };
   });
-  expect(positions.panelLeft).toBeGreaterThanOrEqual(positions.contentRight);
+  expect(positions.placement).toBe("composer-right");
+  expect(Math.abs(positions.panelLeft - positions.contentRight - 12)).toBeLessThan(1);
+  expect(Math.abs(positions.panelTop - positions.contentTop)).toBeLessThan(1);
   await page.close();
+});
+
+test("composer anchoring matches ChatGPT, Claude and Copilot input shells", async () => {
+  const fixtures = [
+    { host: "chatgpt.com", input: '<div id="prompt-textarea" role="textbox" contenteditable="true"></div>', shell: 'data-type="unified-composer"', selector: "#prompt-textarea" },
+    { host: "claude.ai", input: '<div data-testid="chat-input" role="textbox" contenteditable="true"></div>', shell: 'data-testid="composer"', selector: '[data-testid="chat-input"]' },
+    { host: "copilot.microsoft.com", input: '<textarea id="userInput"></textarea>', shell: 'data-testid="composer-shell"', selector: "#userInput" }
+  ];
+  for (const fixture of fixtures) {
+    await context.route(`https://${fixture.host}/**`, (route) => route.fulfill({
+      contentType: "text/html",
+      body: `<!doctype html><style>body{margin:0}.shell{position:fixed;left:220px;bottom:80px;width:620px;padding:16px;box-sizing:border-box;border:1px solid #aaa;border-radius:24px;background:#fff}.shell>[contenteditable],.shell>textarea{display:block;width:100%;min-height:70px;box-sizing:border-box}</style><div class="shell" ${fixture.shell}>${fixture.input}</div>`
+    }));
+    const page = await context.newPage();
+    await page.goto(`https://${fixture.host}/fixture`);
+    await page.locator(fixture.selector).fill("How does RAG reduce hallucinations?");
+    const host = page.locator("#ai-loading-catch-up-root");
+    await expect(host.locator(".panel")).toBeVisible({ timeout: 2500 });
+    const geometry = await page.evaluate(() => {
+      const shell = document.querySelector(".shell").getBoundingClientRect();
+      const extensionHost = document.querySelector("#ai-loading-catch-up-root");
+      const wrap = extensionHost.shadowRoot.querySelector(".wrap").getBoundingClientRect();
+      return { shellRight: shell.right, shellTop: shell.top, wrapLeft: wrap.left, wrapTop: wrap.top, placement: extensionHost.dataset.placement };
+    });
+    expect(geometry.placement, fixture.host).toBe("composer-right");
+    expect(Math.abs(geometry.wrapLeft - geometry.shellRight - 12), fixture.host).toBeLessThan(1);
+    expect(Math.abs(geometry.wrapTop - geometry.shellTop), fixture.host).toBeLessThan(1);
+    await page.close();
+    await context.unroute(`https://${fixture.host}/**`);
+  }
 });
 
 test("ordinary question does not manufacture terms", async () => {

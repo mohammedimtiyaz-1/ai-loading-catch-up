@@ -4,6 +4,8 @@ AI Loading Catch Up is a local Chrome extension that explains difficult concepts
 
 ![AI Loading Catch Up showing five underlined answer concepts and a Tavily-backed hover explanation](docs/screenshots/ai-loading-catch-up-inline-tavily.png)
 
+![The explanation panel automatically aligned to the right edge and top edge of the visible chat composer](docs/screenshots/ai-loading-catch-up-composer-anchor.png)
+
 The extension analyzes a supported chat composer after a short pause while typing. Cached terms appear immediately, and complete unknown concepts can begin online resolution before the question is submitted when Online lookup is enabled.
 
 Answer annotations appear only after the streamed text remains stable. The extension skips links, code, controls, and editable content when adding underlines. Tavily requests contain only candidate terms, domains, and short meaning hints; the transcript remains in the page.
@@ -44,7 +46,7 @@ npm run package
 
 ## Current limits
 
-- The ChatGPT adapter is tested with representative DOM selectors, but the live ChatGPT site has not been verified.
+- Composer adapters and representative layouts are covered for ChatGPT, Claude, and Microsoft Copilot. Their live sites can change independently and have not been verified in a signed-in browser session.
 - English and desktop Chromium are the only supported targets.
 - The backend has no public authentication because it only accepts loopback traffic. Do not expose it publicly.
 - Node 22 prints an experimental SQLite warning. Node 26 is the intended long-term runtime.

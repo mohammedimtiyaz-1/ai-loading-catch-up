@@ -12,6 +12,8 @@
   let inlineTimer = null;
   let draftRevision = 0;
   let positionFrame = null;
+  let anchorObserver = null;
+  let observedAnchor = null;
   let baselineUserNodes = new WeakSet();
   let state = freshState();
   let ui = null;
@@ -49,11 +51,59 @@
     if (location.hostname === "127.0.0.1") {
       return { user: '[data-role="user-message"]', assistant: '[data-role="assistant-message"]', composer: "#question" };
     }
+    if (location.hostname === "claude.ai") {
+      return {
+        user: '[data-testid="user-message"], [data-is-user-message="true"]',
+        assistant: '[data-testid="assistant-message"], [data-is-streaming], .font-claude-response',
+        composer: '[data-testid="chat-input"][contenteditable="true"], [contenteditable="true"][aria-label*="message" i], [contenteditable="true"][role="textbox"]'
+      };
+    }
+    if (location.hostname === "copilot.microsoft.com") {
+      return {
+        user: '[data-content="user-message"], [data-testid="user-message"]',
+        assistant: '[data-content="ai-message"], [data-testid="assistant-message"]',
+        composer: 'textarea#userInput, textarea[data-testid*="composer" i], textarea[placeholder*="message" i], [contenteditable="true"][role="textbox"]'
+      };
+    }
     return {
       user: '[data-message-author-role="user"], article[data-turn="user"]',
       assistant: '[data-message-author-role="assistant"], article[data-turn="assistant"]',
-      composer: '#prompt-textarea, textarea[data-testid="prompt-textarea"], [contenteditable="true"][data-testid="prompt-textarea"]'
+      composer: '#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], [contenteditable="true"][role="textbox"]'
     };
+  }
+
+  function findComposer() {
+    const primary = [...document.querySelectorAll(selectors().composer)];
+    const candidates = primary.length ? primary : [...document.querySelectorAll('textarea, [contenteditable="true"][role="textbox"], [contenteditable="true"][data-testid*="input" i]')];
+    const visible = candidates
+      .filter((node) => {
+        const rect = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return rect.width > 120 && rect.height > 18 && rect.bottom > 0 && rect.top < innerHeight && style.display !== "none" && style.visibility !== "hidden";
+      })
+      .sort((a, b) => b.getBoundingClientRect().bottom - a.getBoundingClientRect().bottom);
+    return visible[0] || candidates.at(-1) || null;
+  }
+
+  function findComposerAnchor(composer) {
+    if (!composer) return null;
+    const base = composer.getBoundingClientRect();
+    let best = { node: composer, score: 0 };
+    let candidate = composer.parentElement;
+    for (let depth = 1; candidate && depth <= 6; depth += 1, candidate = candidate.parentElement) {
+      const rect = candidate.getBoundingClientRect();
+      if (rect.width < base.width || rect.width > Math.min(innerWidth * 0.9, base.width + 240)) continue;
+      if (rect.height < base.height || rect.height > 220 || Math.abs(rect.bottom - base.bottom) > 110) continue;
+      const style = getComputedStyle(candidate);
+      const radius = Number.parseFloat(style.borderRadius) || 0;
+      const namedComposer = /composer|prompt|input/i.test(`${candidate.id} ${candidate.className} ${candidate.getAttribute("data-testid") || ""} ${candidate.getAttribute("data-type") || ""}`);
+      const semanticComposer = /composer|prompt|input/i.test(`${candidate.getAttribute("data-testid") || ""} ${candidate.getAttribute("data-type") || ""}`);
+      const visuallyBounded = radius >= 8 || style.borderTopWidth !== "0px" || !["transparent", "rgba(0, 0, 0, 0)"].includes(style.backgroundColor);
+      if (!visuallyBounded && !semanticComposer) continue;
+      const score = (namedComposer ? 100 : 0) + (visuallyBounded ? 30 : 0) + Math.min(25, (rect.width - base.width) / 8) - depth * 3;
+      if (score > best.score) best = { node: candidate, score };
+    }
+    return best.node;
   }
 
   function userMessageNodes() { return [...document.querySelectorAll(selectors().user)]; }
@@ -74,7 +124,7 @@
 
   function onComposerInput(event) {
     if (!settings.enabled) return;
-    const composer = event.target?.closest?.(selectors().composer);
+    const composer = event.target?.matches?.(selectors().composer) ? event.target : event.target?.closest?.(selectors().composer);
     if (!composer) return;
     clearTimeout(draftTimer);
     draftTimer = setTimeout(() => processDraft(composer), 450);
@@ -206,9 +256,10 @@
         :host { all: initial; }
         .wrap { position: fixed; top: 24px; left: 24px; z-index: 2147483646; width: 320px; max-width: calc(100vw - 24px); font: 14px/1.42 system-ui, sans-serif; color: #17151f; }
         button { font: inherit; }
-        .chip { display: none; margin: 0 0 8px; border: 0; border-radius: 999px; padding: 8px 12px; color: white; background: #6d4aff; box-shadow: 0 6px 22px #0003; cursor: pointer; font-weight: 750; }
+        .chip { display: none; margin: 0; border: 0; border-radius: 999px; padding: 9px 13px; color: white; background: #6d4aff; box-shadow: 0 6px 22px #0003; cursor: pointer; font-weight: 750; }
         .chip.show { display: block; }
-        .panel { display: none; width: 100%; max-height: min(460px, calc(100vh - 96px)); overflow: auto; box-sizing: border-box; padding: 12px; border: 1px solid #d9d4e8; border-radius: 16px; background: #fff; box-shadow: 0 16px 50px #0003; }
+        .chip.panel-open { display: none; }
+        .panel { display: none; width: 100%; max-height: min(460px, var(--available-height, calc(100vh - 24px))); overflow: auto; box-sizing: border-box; padding: 12px; border: 1px solid #d9d4e8; border-radius: 16px; background: #fff; box-shadow: 0 16px 50px #0003; }
         .panel.open { display: block; }
         .header { display: flex; justify-content: space-between; align-items: center; margin: 0 0 8px; }
         h2 { font-size: 15px; margin: 0; }
@@ -226,11 +277,11 @@
         @media (prefers-reduced-motion: no-preference) { .chip.show { animation: pop .18s ease-out; } @keyframes pop { from { transform: scale(.92); opacity: .5; } } }
       </style>
       <div class="wrap">
+        <button class="chip" type="button" aria-expanded="false" aria-haspopup="dialog">0 terms</button>
         <section class="panel" role="dialog" aria-modal="false" aria-labelledby="tk-title">
           <div class="header"><h2 id="tk-title">AI Loading Catch Up</h2><button class="close" type="button" aria-label="Close explanations">×</button></div>
           <div class="cards" aria-live="polite"></div>
         </section>
-        <button class="chip" type="button" aria-expanded="false" aria-haspopup="dialog">0 terms</button>
         <aside class="term-tooltip" role="tooltip"></aside>
       </div>`;
     document.documentElement.append(host);
@@ -242,6 +293,7 @@
     shadow.addEventListener("keydown", (event) => { if (event.key === "Escape") setOpen(false); });
     function setOpen(open, moveFocus = true) {
       panel.classList.toggle("open", open);
+      chip.classList.toggle("panel-open", open);
       chip.setAttribute("aria-expanded", String(open));
       if (moveFocus) {
         if (open) close.focus(); else chip.focus();
@@ -266,6 +318,9 @@
     clearTimeout(maxWaitTimer);
     clearTimeout(draftTimer);
     clearTimeout(inlineTimer);
+    anchorObserver?.disconnect();
+    anchorObserver = null;
+    observedAnchor = null;
     clearInlineAnnotations();
   }
 
@@ -275,7 +330,7 @@
     ui.host.dataset.termCount = String(count);
     ui.chip.textContent = `${count} ${count === 1 ? "term" : "terms"}`;
     ui.chip.classList.toggle("show", count > 0);
-    if (!count) ui.panel.classList.remove("open");
+    if (!count) ui.setOpen(false, false);
     ui.cards.replaceChildren(...state.slots.map(cardFor));
     if (count > 0) ui.setOpen(true, false);
     schedulePosition();
@@ -293,21 +348,38 @@
     if (!ui) return;
     const pageZoom = Number.parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     ui.host.style.zoom = String(1 / pageZoom);
-    const composer = document.querySelector(selectors().composer);
-    const reference = composer || state.answerNode || [...userMessageNodes()].at(-1);
-    if (!reference) return;
-    const rect = reference.getBoundingClientRect();
-    const composerRect = composer?.getBoundingClientRect();
-    const contentRight = Math.max(rect.right, composerRect?.right || 0);
-    const gap = 16;
+    const composer = findComposer();
+    const anchor = findComposerAnchor(composer);
+    syncAnchorObserver(anchor);
+    if (!anchor) {
+      ui.wrap.style.visibility = "hidden";
+      ui.host.dataset.placement = "waiting-for-composer";
+      return;
+    }
+    const rect = anchor.getBoundingClientRect();
+    const gap = 12;
     const edge = 12;
-    const available = Math.floor(window.innerWidth - contentRight - gap - edge);
-    const width = Math.max(180, Math.min(340, available));
-    const left = Math.min(window.innerWidth - width - edge, contentRight + gap);
-    const top = Math.max(edge, Math.min(rect.top, window.innerHeight - 120));
+    const available = Math.floor(window.innerWidth - rect.right - gap - edge);
+    const hasRightRail = available >= 96;
+    const width = hasRightRail ? (available >= 180 ? Math.min(340, available) : available) : Math.min(300, window.innerWidth - edge * 2);
+    const left = hasRightRail ? rect.right + gap : window.innerWidth - width - edge;
+    const top = Math.max(edge, Math.min(rect.top, window.innerHeight - edge - 40));
+    ui.wrap.style.visibility = "visible";
     ui.wrap.style.width = `${width}px`;
-    ui.wrap.style.left = `${Math.max(edge, left)}px`;
+    ui.wrap.style.left = `${left}px`;
     ui.wrap.style.top = `${top}px`;
+    ui.wrap.style.setProperty("--available-height", `${Math.max(120, window.innerHeight - top - edge)}px`);
+    ui.host.dataset.placement = hasRightRail ? "composer-right" : "composer-edge-fallback";
+    ui.host.dataset.anchorTag = anchor.tagName.toLowerCase();
+  }
+
+  function syncAnchorObserver(anchor) {
+    if (observedAnchor === anchor) return;
+    anchorObserver?.disconnect();
+    observedAnchor = anchor;
+    if (!anchor || typeof ResizeObserver !== "function") return;
+    anchorObserver = new ResizeObserver(schedulePosition);
+    anchorObserver.observe(anchor);
   }
 
   function cardFor(slot) {

@@ -1,6 +1,6 @@
 # Verification report
 
-Tested 11 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `596f6d7a531ab98642ae8e4e019686f0c8e6fb55e6220441007f0f0d8b5dbad0`.
+Tested 12 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `270c7dd0d95265df91dfd127f528e7a74f862e0a54b790a3bdef42fd339de774`.
 
 ## Automated evidence
 
@@ -12,14 +12,15 @@ Tested 11 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled
 | Streaming | two question cards remained while the streamed answer added vector database as the third | Pass |
 | Lifecycle | regeneration, route navigation, disable/re-enable and duplicate prevention | Pass |
 | Accessibility | keyboard opening, Escape, focus restoration, visible popover at 200% page zoom | Pass |
-| Cached latency | submitted RAG question to visible two-term chip | 131 ms observed after Tavily integration; target was 300 ms |
+| Cached latency | submitted RAG question to visible two-term panel | 97 ms observed after Tavily integration; target was 300 ms |
 | Live Tavily lookup | `differential privacy` through the application resolver | resolved with a short explanation and supporting source; immediate repeat returned `cache: backend` |
 | Pre-submit lookup | typed `federated learning framework` without submitting | extension showed one sourced Tavily-backed card while the simulator still contained zero user messages |
 | Answer annotations | completed RAG answer with deterministic Tavily resolver responses | five answer concepts were underlined; hover exposed a one-line tooltip |
+| Composer anchoring | representative ChatGPT, Claude, and Copilot input shells | panel opened automatically with its top edge aligned to the composer and its left edge exactly 12 px to the right |
 | Package | ZIP integrity and direct unpacked files | Pass |
 | Dependencies | `npm audit --omit=dev` | 0 vulnerabilities |
 
-The final local result was 16/16 Node checks and 6/6 installed-extension browser checks. The ZIP integrity check reported no errors.
+The final local result was 16/16 Node checks and 7/7 installed-extension browser checks. The ZIP integrity check reported no errors.
 
 ## Review and validation
 
@@ -29,7 +30,7 @@ The extension requests only `storage` plus explicit loopback and ChatGPT hosts. 
 
 ## Partially evaluated or deferred
 
-- The ChatGPT adapter is covered by representative selectors and shared lifecycle behavior; actual live ChatGPT compatibility is not verified.
+- ChatGPT, Claude, and Copilot adapters are covered by representative input-shell fixtures and shared lifecycle behavior; compatibility in signed-in live sessions is not verified.
 - One configured live Tavily miss was verified through the application resolver, followed by a backend-cache hit. Routine provider, failure, timeout, cache and budget checks remain deterministic so the test suite does not spend credits.
 - Persistence logic writes individual definitions to `chrome.storage.local`, reconstructs the memory cache after worker restart, and implements bounded batch eviction. Automated Chromium worker termination and a full 1,000-entry/4 MiB eviction run were not performed.
 - Dark and light colors are implemented with `prefers-color-scheme`; the automated check covers keyboard and zoom rather than screenshot comparison in both themes.
