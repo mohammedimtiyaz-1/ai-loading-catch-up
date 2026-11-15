@@ -14,6 +14,7 @@
   let positionFrame = null;
   let anchorObserver = null;
   let observedAnchor = null;
+  let userCollapsed = false;
   let baselineUserNodes = new WeakSet();
   let state = freshState();
   let ui = null;
@@ -38,6 +39,8 @@
     document.addEventListener("input", onComposerInput, true);
     document.addEventListener("scroll", schedulePosition, true);
     window.addEventListener("resize", schedulePosition);
+    window.visualViewport?.addEventListener("resize", schedulePosition);
+    window.visualViewport?.addEventListener("scroll", schedulePosition);
     chrome.storage.onChanged.addListener(onSettingsChanged);
     routeTimer = setInterval(checkRoute, 700);
   }
@@ -234,6 +237,7 @@
     clearTimeout(draftTimer);
     clearTimeout(inlineTimer);
     clearInlineAnnotations();
+    userCollapsed = false;
     baseline();
     render();
   }
@@ -268,18 +272,21 @@
         .card:first-of-type { border-top: 0; }
         h3 { font-size: 14px; margin: 0 0 4px; }
         p { margin: 0; }
-        .muted { color: #6d6878; }
+        .muted, .empty { color: #6d6878; }
+        .empty { padding: 8px 0 4px; }
+        .empty[hidden] { display: none; }
         a { display: inline-block; margin-top: 6px; color: #5533dd; }
         .term-tooltip { display: none; position: fixed; z-index: 2147483647; width: min(290px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px 12px; border: 1px solid #d9d4e8; border-radius: 10px; color: #17151f; background: #fff; box-shadow: 0 10px 34px #0004; font: 13px/1.4 system-ui, sans-serif; pointer-events: none; }
         .term-tooltip.show { display: block; }
         button:focus-visible, a:focus-visible { outline: 3px solid #ffb000; outline-offset: 2px; }
-        @media (prefers-color-scheme: dark) { .panel, .term-tooltip { background: #24212d; color: #f7f4ff; border-color: #494354; } .card { border-color: #494354; } .muted { color: #c6bfce; } a { color: #baaaff; } }
+        @media (prefers-color-scheme: dark) { .panel, .term-tooltip { background: #24212d; color: #f7f4ff; border-color: #494354; } .card { border-color: #494354; } .muted, .empty { color: #c6bfce; } a { color: #baaaff; } }
         @media (prefers-reduced-motion: no-preference) { .chip.show { animation: pop .18s ease-out; } @keyframes pop { from { transform: scale(.92); opacity: .5; } } }
       </style>
       <div class="wrap">
         <button class="chip" type="button" aria-expanded="false" aria-haspopup="dialog">0 terms</button>
         <section class="panel" role="dialog" aria-modal="false" aria-labelledby="tk-title">
-          <div class="header"><h2 id="tk-title">AI Loading Catch Up</h2><button class="close" type="button" aria-label="Close explanations">×</button></div>
+          <div class="header"><h2 id="tk-title">AI Loading Catch Up</h2><button class="close" type="button" aria-label="Collapse explanations">×</button></div>
+          <p class="empty">Type a question to see difficult terms explained here.</p>
           <div class="cards" aria-live="polite"></div>
         </section>
         <aside class="term-tooltip" role="tooltip"></aside>
@@ -288,18 +295,20 @@
     const chip = shadow.querySelector(".chip");
     const panel = shadow.querySelector(".panel");
     const close = shadow.querySelector(".close");
-    chip.addEventListener("click", () => setOpen(!panel.classList.contains("open")));
-    close.addEventListener("click", () => setOpen(false));
-    shadow.addEventListener("keydown", (event) => { if (event.key === "Escape") setOpen(false); });
-    function setOpen(open, moveFocus = true) {
+    chip.addEventListener("click", () => setOpen(true, true, true));
+    close.addEventListener("click", () => setOpen(false, true, true));
+    shadow.addEventListener("keydown", (event) => { if (event.key === "Escape" && panel.classList.contains("open")) setOpen(false, true, true); });
+    function setOpen(open, moveFocus = true, userAction = false) {
+      if (userAction) userCollapsed = !open;
       panel.classList.toggle("open", open);
       chip.classList.toggle("panel-open", open);
+      chip.classList.toggle("show", !open);
       chip.setAttribute("aria-expanded", String(open));
       if (moveFocus) {
         if (open) close.focus(); else chip.focus();
       }
     }
-    ui = { host, shadow, chip, panel, cards: shadow.querySelector(".cards"), wrap: shadow.querySelector(".wrap"), tooltip: shadow.querySelector(".term-tooltip"), setOpen };
+    ui = { host, shadow, chip, panel, empty: shadow.querySelector(".empty"), cards: shadow.querySelector(".cards"), wrap: shadow.querySelector(".wrap"), tooltip: shadow.querySelector(".term-tooltip"), setOpen };
     document.addEventListener("pointerover", showInlineTooltip, true);
     document.addEventListener("pointerout", hideInlineTooltip, true);
     document.addEventListener("focusin", showInlineTooltip, true);
@@ -328,11 +337,10 @@
     if (!ui) return;
     const count = state.slots.length;
     ui.host.dataset.termCount = String(count);
-    ui.chip.textContent = `${count} ${count === 1 ? "term" : "terms"}`;
-    ui.chip.classList.toggle("show", count > 0);
-    if (!count) ui.setOpen(false, false);
+    ui.chip.textContent = count ? `${count} ${count === 1 ? "term" : "terms"}` : "AI Catch Up";
+    ui.empty.hidden = count > 0;
     ui.cards.replaceChildren(...state.slots.map(cardFor));
-    if (count > 0) ui.setOpen(true, false);
+    ui.setOpen(!userCollapsed, false);
     schedulePosition();
   }
 
@@ -360,16 +368,28 @@
     const gap = 12;
     const edge = 12;
     const available = Math.floor(window.innerWidth - rect.right - gap - edge);
-    const hasRightRail = available >= 96;
-    const width = hasRightRail ? (available >= 180 ? Math.min(340, available) : available) : Math.min(300, window.innerWidth - edge * 2);
-    const left = hasRightRail ? rect.right + gap : window.innerWidth - width - edge;
-    const top = Math.max(edge, Math.min(rect.top, window.innerHeight - edge - 40));
+    const hasRightRail = available >= (userCollapsed ? 96 : 240);
+    const width = hasRightRail
+      ? (userCollapsed ? Math.min(140, available) : Math.min(340, Math.max(240, available)))
+      : Math.min(340, rect.width, window.innerWidth - edge * 2);
+    const left = hasRightRail
+      ? rect.right + gap
+      : Math.max(edge, Math.min(rect.right - width, window.innerWidth - width - edge));
+    let top = Math.max(edge, Math.min(rect.top, window.innerHeight - edge - 40));
     ui.wrap.style.visibility = "visible";
     ui.wrap.style.width = `${width}px`;
     ui.wrap.style.left = `${left}px`;
+    if (hasRightRail) {
+      ui.wrap.style.setProperty("--available-height", `${Math.max(120, window.innerHeight - top - edge)}px`);
+    } else {
+      const availableAbove = Math.max(60, rect.top - gap - edge);
+      ui.wrap.style.setProperty("--available-height", `${availableAbove}px`);
+      ui.wrap.style.top = `${edge}px`;
+      const renderedHeight = Math.min(ui.wrap.getBoundingClientRect().height || availableAbove, availableAbove);
+      top = Math.max(edge, rect.top - gap - renderedHeight);
+    }
     ui.wrap.style.top = `${top}px`;
-    ui.wrap.style.setProperty("--available-height", `${Math.max(120, window.innerHeight - top - edge)}px`);
-    ui.host.dataset.placement = hasRightRail ? "composer-right" : "composer-edge-fallback";
+    ui.host.dataset.placement = hasRightRail ? "composer-right" : "composer-above";
     ui.host.dataset.anchorTag = anchor.tagName.toLowerCase();
   }
 

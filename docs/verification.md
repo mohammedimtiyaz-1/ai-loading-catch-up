@@ -1,6 +1,6 @@
 # Verification report
 
-Tested 12 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `270c7dd0d95265df91dfd127f528e7a74f862e0a54b790a3bdef42fd339de774`.
+Tested 15 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `57421442f3b1a2c053ba92d432ae0e7bd63a2de902b68149b0a740d942fa70a2`.
 
 ## Automated evidence
 
@@ -12,15 +12,17 @@ Tested 12 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled
 | Streaming | two question cards remained while the streamed answer added vector database as the third | Pass |
 | Lifecycle | regeneration, route navigation, disable/re-enable and duplicate prevention | Pass |
 | Accessibility | keyboard opening, Escape, focus restoration, visible popover at 200% page zoom | Pass |
-| Cached latency | submitted RAG question to visible two-term panel | 97 ms observed after Tavily integration; target was 300 ms |
+| Cached latency | submitted RAG question to visible two-term panel | 69 ms observed; target was 300 ms |
 | Live Tavily lookup | `differential privacy` through the application resolver | resolved with a short explanation and supporting source; immediate repeat returned `cache: backend` |
 | Pre-submit lookup | typed `federated learning framework` without submitting | extension showed one sourced Tavily-backed card while the simulator still contained zero user messages |
 | Answer annotations | completed RAG answer with deterministic Tavily resolver responses | five answer concepts were underlined; hover exposed a one-line tooltip |
 | Composer anchoring | representative ChatGPT, Claude, and Copilot input shells | panel opened automatically with its top edge aligned to the composer and its left edge exactly 12 px to the right |
+| Delayed and narrow composers | delayed ChatGPT mount, 240/300/340 px adaptive widths, constrained viewport | empty panel opened after mount; constrained layout moved above and remained clear of the input |
+| Panel state | collapse, reopen, Escape, focus restoration, route change | collapsed tab remained beside the composer and a new conversation restored the expanded empty panel |
 | Package | ZIP integrity and direct unpacked files | Pass |
 | Dependencies | `npm audit --omit=dev` | 0 vulnerabilities |
 
-The final local result was 16/16 Node checks and 7/7 installed-extension browser checks. The ZIP integrity check reported no errors.
+The final local result was 16/16 Node checks and 9/9 installed-extension browser checks. The ZIP integrity check reported no errors.
 
 ## Review and validation
 
