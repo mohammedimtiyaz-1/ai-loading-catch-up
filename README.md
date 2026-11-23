@@ -1,8 +1,8 @@
-# AI Loading Catch Up
+# AI Chat Keyword Explainer
 
-AI Loading Catch Up is a local Chrome extension that explains difficult concepts while the user waits for an AI-chat answer. Version 0.3.0 opens automatically when a supported chat composer appears. It aligns 12 px to the composer's right when space permits and moves above it on narrow layouts. After an answer stabilizes, it underlines up to five additional Tavily-backed concepts and shows a one-line explanation on hover or keyboard focus.
+AI Chat Keyword Explainer is a local Chrome extension that explains difficult concepts while the user types and waits for an AI-chat answer. Version 0.4.0 opens automatically when a supported chat composer appears. It aligns 12 px to the composer's right when space permits and moves above it on narrow layouts. After an answer stabilizes, it underlines up to five additional Tavily-backed concepts and shows a one-line explanation on hover or keyboard focus.
 
-![AI Loading Catch Up showing five underlined answer concepts and a Tavily-backed hover explanation](docs/screenshots/ai-loading-catch-up-inline-tavily.png)
+![AI Chat Keyword Explainer showing five underlined answer concepts and a Tavily-backed hover explanation](docs/screenshots/ai-loading-catch-up-inline-tavily.png)
 
 ![The explanation panel automatically aligned to the right edge and top edge of the visible chat composer](docs/screenshots/ai-loading-catch-up-composer-anchor.png)
 
@@ -34,7 +34,7 @@ npm run check
 npm run package
 ```
 
-`npm run check` runs Node logic/API checks and the installed extension in Playwright's bundled Chromium. Packaging copies the extension without compilation to `dist/ai-loading-catch-up-unpacked/` and creates `dist/ai-loading-catch-up-chrome.zip`.
+`npm run check` runs Node logic/API checks and the installed extension in Playwright's bundled Chromium. Packaging copies the extension without compilation to `dist/ai-chat-keyword-explainer-unpacked/` and creates `dist/ai-chat-keyword-explainer-chrome.zip`.
 
 ## Project layout
 

@@ -18,7 +18,7 @@ test.beforeAll(async () => {
 
 test.afterAll(async () => context?.close());
 
-test("panel waits for a delayed ChatGPT composer and then opens empty", async () => {
+test("panel waits for a delayed ChatGPT composer and then shows only its title", async () => {
   await context.route("https://chatgpt.com/**", (route) => route.fulfill({
     contentType: "text/html",
     body: '<!doctype html><style>.shell{position:fixed;left:220px;top:500px;width:620px;padding:16px;border:1px solid #aaa;border-radius:24px;box-sizing:border-box}</style><main></main>'
@@ -32,7 +32,8 @@ test("panel waits for a delayed ChatGPT composer and then opens empty", async ()
     document.querySelector("main").innerHTML = '<div class="shell" data-type="unified-composer"><div id="prompt-textarea" role="textbox" contenteditable="true"></div></div>';
   });
   await expect(host.locator(".panel")).toBeVisible();
-  await expect(host.locator(".empty")).toHaveText("Type a question to see difficult terms explained here.");
+  await expect(host.locator("h2")).toHaveText("AI Chat Keyword Explainer");
+  await expect(host.locator(".cards article")).toHaveCount(0);
   await expect(host).toHaveAttribute("data-placement", "composer-right");
   await page.close();
   await context.unroute("https://chatgpt.com/**");
@@ -64,10 +65,9 @@ test("draft terms appear before the question is submitted", async () => {
   await page.locator("#question").fill("How does RAG reduce hallucinations?");
   const host = page.locator("#ai-loading-catch-up-root");
   await expect(host.locator(".panel")).toBeVisible();
-  await expect(host.locator(".empty")).toBeVisible();
+  await expect(host.locator("h2")).toHaveText("AI Chat Keyword Explainer");
   await expect(host.locator(".chip")).toHaveText("2 terms", { timeout: 2000 });
   await expect(host.locator(".panel")).toBeVisible();
-  await expect(host.locator(".empty")).toBeHidden();
   await expect(page.locator('[data-role="user-message"]')).toHaveCount(0);
   const positions = await page.evaluate(() => {
     const content = document.querySelector("#question").getBoundingClientRect();
@@ -173,7 +173,6 @@ test("ordinary question does not manufacture terms", async () => {
   const host = page.locator("#ai-loading-catch-up-root");
   await page.waitForTimeout(1200);
   await expect(host.locator(".panel")).toBeVisible();
-  await expect(host.locator(".empty")).toBeVisible();
   await expect(host.locator(".cards article")).toHaveCount(0);
   await page.close();
 });
@@ -250,7 +249,7 @@ test("popover supports Escape, focus restoration, regeneration, navigation and z
   await host.locator(".close").click();
   await page.locator("#newConversation").click();
   await expect(host.locator(".panel")).toBeVisible({ timeout: 2000 });
-  await expect(host.locator(".empty")).toBeVisible();
+  await expect(host.locator("h2")).toHaveText("AI Chat Keyword Explainer");
   await expect(chip).toBeHidden();
   await page.close();
 });

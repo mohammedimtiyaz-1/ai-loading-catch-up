@@ -1,4 +1,4 @@
-# Task: Implement AI Loading Catch Up local extension
+# Task: Implement AI Chat Keyword Explainer local extension
 
 - Date: 2026-11-11
 - Status: complete
@@ -59,4 +59,4 @@ The simulator detects a submitted question, shows at most three contextual defin
 
 ## Final handoff
 
-Deliver `dist/ai-loading-catch-up-unpacked/`, `dist/ai-loading-catch-up-chrome.zip`, the loopback server/simulator, setup guide, verification report, privacy notes and later-hosting checklist. No deployment or publication was performed.
+Deliver `dist/ai-chat-keyword-explainer-unpacked/`, `dist/ai-chat-keyword-explainer-chrome.zip`, the loopback server/simulator, setup guide, verification report, privacy notes and later-hosting checklist. No deployment or publication was performed.

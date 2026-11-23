@@ -50,7 +50,7 @@
 
 ## Scrum and delivery configuration
 
-- Product Goal and Product Owner: deliver local AI Loading Catch Up prototype; user owns product decisions.
+- Product Goal and Product Owner: deliver local AI Chat Keyword Explainer prototype; user owns product decisions.
 - Sprint cadence: single implementation increment for this request.
 - Backlog and sprint record links: `.software-team/tasks/2026-11-11-ai-loading-catch-up.md`
 - Architecture decision and selected capabilities: plain MV3 extension + native Node backend.

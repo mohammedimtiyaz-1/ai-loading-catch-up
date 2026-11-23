@@ -23,7 +23,7 @@ jobs:
       - run: npm run package
       - uses: actions/upload-artifact@v4
         with:
-          name: ai-loading-catch-up-extension
+          name: ai-chat-keyword-explainer-extension
           path: |
-            dist/ai-loading-catch-up-unpacked
-            dist/ai-loading-catch-up-chrome.zip
+            dist/ai-chat-keyword-explainer-unpacked
+            dist/ai-chat-keyword-explainer-chrome.zip

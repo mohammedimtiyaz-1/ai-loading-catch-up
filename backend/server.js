@@ -30,7 +30,7 @@ const server = createServer(async (request, response) => {
   json(response, 404, { error: "not_found" });
 });
 
-server.listen(port, "127.0.0.1", () => console.log(`AI Loading Catch Up simulator: http://127.0.0.1:${port}`));
+server.listen(port, "127.0.0.1", () => console.log(`AI Chat Keyword Explainer simulator: http://127.0.0.1:${port}`));
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => { server.close(); cache.close(); });
 
 function setHeaders(response) {
