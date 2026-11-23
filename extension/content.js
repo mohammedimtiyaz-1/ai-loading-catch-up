@@ -9,18 +9,13 @@
   let answerTimer = null;
   let maxWaitTimer = null;
   let draftTimer = null;
-  let inlineTimer = null;
   let draftRevision = 0;
   let lastDraftText = "";
-  let positionFrame = null;
-  let anchorObserver = null;
-  let observedAnchor = null;
-  let userCollapsed = false;
-  let userClosed = false;
   let baselineUserNodes = new WeakSet();
   let state = freshState();
   let ui = null;
   const inlineDefinitions = new WeakMap();
+  const annotationTimers = new Map();
 
   function freshState() {
     return { exchangeId: null, questionRevision: 0, answerRevision: 0, slots: [], answerNode: null, answerText: "", ended: false, isDraft: false };
@@ -40,10 +35,6 @@
     observe();
     scheduleDraftProcessing(findComposer());
     document.addEventListener("input", onComposerInput, true);
-    document.addEventListener("scroll", schedulePosition, true);
-    window.addEventListener("resize", schedulePosition);
-    window.visualViewport?.addEventListener("resize", schedulePosition);
-    window.visualViewport?.addEventListener("scroll", schedulePosition);
     chrome.storage.onChanged.addListener(onSettingsChanged);
     routeTimer = setInterval(checkRoute, 700);
   }
@@ -91,27 +82,6 @@
     return visible[0] || candidates.at(-1) || null;
   }
 
-  function findComposerAnchor(composer) {
-    if (!composer) return null;
-    const base = composer.getBoundingClientRect();
-    let best = { node: composer, score: 0 };
-    let candidate = composer.parentElement;
-    for (let depth = 1; candidate && depth <= 6; depth += 1, candidate = candidate.parentElement) {
-      const rect = candidate.getBoundingClientRect();
-      if (rect.width < base.width || rect.width > Math.min(innerWidth * 0.9, base.width + 240)) continue;
-      if (rect.height < base.height || rect.height > 220 || Math.abs(rect.bottom - base.bottom) > 110) continue;
-      const style = getComputedStyle(candidate);
-      const radius = Number.parseFloat(style.borderRadius) || 0;
-      const namedComposer = /composer|prompt|input/i.test(`${candidate.id} ${candidate.className} ${candidate.getAttribute("data-testid") || ""} ${candidate.getAttribute("data-type") || ""}`);
-      const semanticComposer = /composer|prompt|input/i.test(`${candidate.getAttribute("data-testid") || ""} ${candidate.getAttribute("data-type") || ""}`);
-      const visuallyBounded = radius >= 8 || style.borderTopWidth !== "0px" || !["transparent", "rgba(0, 0, 0, 0)"].includes(style.backgroundColor);
-      if (!visuallyBounded && !semanticComposer) continue;
-      const score = (namedComposer ? 100 : 0) + (visuallyBounded ? 30 : 0) + Math.min(25, (rect.width - base.width) / 8) - depth * 3;
-      if (score > best.score) best = { node: candidate, score };
-    }
-    return best.node;
-  }
-
   function userMessageNodes() { return [...document.querySelectorAll(selectors().user)]; }
   function assistantMessageNodes() { return [...document.querySelectorAll(selectors().assistant)]; }
 
@@ -126,7 +96,6 @@
     checkForQuestion();
     scheduleDraftProcessing(findComposer());
     if (state.exchangeId && !state.isDraft) scheduleAnswerProcessing();
-    schedulePosition();
   }
 
   function onComposerInput(event) {
@@ -154,9 +123,6 @@
     }
     const revision = ++draftRevision;
     state = { ...freshState(), exchangeId: `draft-${revision}`, questionRevision: revision, isDraft: true };
-    state.slots = core.createSlots(text, glossary);
-    render();
-    if (settings.onlineLookup && state.slots.length < 2) resolveUnknown(text, "question", 2 - state.slots.length);
   }
 
   function checkForQuestion() {
@@ -176,12 +142,9 @@
   function beginExchange(node, questionText) {
     clearTimeout(draftTimer);
     lastDraftText = questionText.replace(/\s+/g, " ").trim();
-    clearInlineAnnotations();
     const id = node.dataset.exchangeId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     state = { ...freshState(), exchangeId: id, questionRevision: 1 };
-    state.slots = core.createSlots(questionText, glossary);
-    render();
-    if (settings.onlineLookup && state.slots.length < 2) resolveUnknown(questionText, "question", 2 - state.slots.length);
+    scheduleInlineAnnotations(node, questionText, 850);
   }
 
   function scheduleAnswerProcessing() {
@@ -211,37 +174,7 @@
     state.answerNode = node;
     state.answerText = text;
     state.answerRevision ||= 1;
-    scheduleInlineAnnotations(node, text, state.exchangeId, state.answerRevision);
-    const before = state.slots.length;
-    const ids = state.slots.map((slot) => slot.definition?.canonicalTermId).filter(Boolean);
-    const definitions = core.selectTerms(text, 3 - state.slots.length, ids, glossary);
-    for (const definition of definitions) state.slots.push({ source: "answer", status: "ready", definition });
-    if (state.slots.length !== before) render();
-    if (settings.onlineLookup && state.slots.length < 3) resolveUnknown(text, "answer", 3 - state.slots.length);
-  }
-
-  async function resolveUnknown(text, source, limit) {
-    const exchangeId = state.exchangeId;
-    const answerRevision = state.answerRevision;
-    const knownAliases = state.slots.flatMap((slot) => slot.definition?.aliases || [slot.definition?.displayTerm]).filter(Boolean);
-    const terms = core.unknownCandidates(text, limit, knownAliases);
-    if (!terms.length) return;
-    const pending = terms.map((term) => ({ source, status: "loading", candidate: term }));
-    state.slots.push(...pending.slice(0, 3 - state.slots.length));
-    render();
-    const response = await send({ type: "definition:resolve", payload: { requestId: crypto.randomUUID(), terms } });
-    if (state.exchangeId !== exchangeId || (source === "answer" && state.answerRevision !== answerRevision)) return;
-    pending.forEach((slot, index) => {
-      const result = response?.results?.[index];
-      if (result?.status === "resolved") {
-        slot.status = "ready";
-        slot.definition = result.definition;
-      } else {
-        slot.status = "unavailable";
-        slot.reason = result?.reason || result?.status || "unavailable";
-      }
-    });
-    render();
+    scheduleInlineAnnotations(node, text, 1400);
   }
 
   function checkRoute() {
@@ -250,12 +183,9 @@
     state = freshState();
     lastDraftText = "";
     clearTimeout(draftTimer);
-    clearTimeout(inlineTimer);
+    clearAnnotationTimers();
     clearInlineAnnotations();
-    userCollapsed = false;
-    userClosed = false;
     baseline();
-    render();
   }
 
   function onSettingsChanged(changes, area) {
@@ -274,76 +204,18 @@
     shadow.innerHTML = `
       <style>
         :host { all: initial; color-scheme: var(--akx-color-scheme, light); }
-        .wrap { position: fixed; top: 24px; left: 24px; z-index: 2147483646; width: 300px; max-width: calc(100vw - 24px); font-family: var(--akx-font-family, system-ui, sans-serif); font-size: var(--akx-font-size, 13px); line-height: 1.4; color: var(--akx-text, #17151f); }
-        button { font: inherit; }
-        .chip { display: none; margin: 0; border: 1px solid var(--akx-border, #d9d4e8); border-radius: 999px; padding: 8px 12px; color: var(--akx-text, #17151f); background: var(--akx-surface, #fff); box-shadow: 0 6px 22px #0003; cursor: pointer; font-weight: 700; }
-        .chip.show { display: block; }
-        .chip.panel-open { display: none; }
-        .panel { display: none; width: 100%; max-height: min(420px, 55vh, var(--available-height, calc(100vh - 24px))); overflow: auto; box-sizing: border-box; padding: 11px; border: 1px solid var(--akx-border, #d9d4e8); border-radius: 15px; color: var(--akx-text, #17151f); background: var(--akx-surface, #fff); box-shadow: 0 16px 50px #0003; scrollbar-width: thin; }
-        .panel.open { display: block; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin: 0 0 8px; }
-        h2 { font-size: 1em; line-height: 1.25; margin: 0; }
-        .header-actions { display: flex; align-items: center; gap: 2px; }
-        .icon-button { display: grid; place-items: center; width: 27px; height: 27px; padding: 0; border: 0; border-radius: 8px; color: inherit; background: transparent; cursor: pointer; font-size: 17px; line-height: 1; }
-        .icon-button:hover { background: var(--akx-hover, #0000000d); }
-        .card { padding: 10px 0; border-top: 1px solid var(--akx-border, #ece8f2); }
-        .card:first-of-type { border-top: 0; }
-        h3 { font-size: 1em; line-height: 1.3; margin: 0 0 4px; }
-        p { margin: 0; }
-        .muted { color: var(--akx-muted, #6d6878); }
-        a { display: inline-block; margin-top: 6px; color: inherit; text-decoration: underline; text-underline-offset: 2px; }
-        .term-tooltip { display: none; position: fixed; z-index: 2147483647; width: min(290px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--akx-border, #d9d4e8); border-radius: 10px; color: var(--akx-text, #17151f); background: var(--akx-surface, #fff); box-shadow: 0 10px 34px #0004; font: var(--akx-font-size, 12px)/1.4 var(--akx-font-family, system-ui, sans-serif); pointer-events: none; }
+        .term-tooltip { display: none; position: fixed; z-index: 2147483647; width: min(270px, calc(100vw - 24px)); box-sizing: border-box; padding: 8px 10px; border: 1px solid var(--akx-border, #d9d4e8); border-radius: 9px; color: var(--akx-text, #17151f); background: var(--akx-surface, #fff); box-shadow: 0 8px 28px #0003; font: var(--akx-font-size, 12px)/1.38 var(--akx-font-family, system-ui, sans-serif); pointer-events: none; }
         .term-tooltip.show { display: block; }
-        button:focus-visible, a:focus-visible { outline: 3px solid #ffb000; outline-offset: 2px; }
-        @media (max-width: 640px) { .panel { padding: 10px; border-radius: 14px; } .card { padding: 9px 0; } }
-        @media (forced-colors: active) { .panel, .chip, .term-tooltip { color: CanvasText; background: Canvas; border-color: CanvasText; box-shadow: none; } .muted { color: CanvasText; } .icon-button:hover { background: Highlight; color: HighlightText; } }
-        @media (prefers-reduced-motion: no-preference) { .chip.show { animation: pop .18s ease-out; } @keyframes pop { from { transform: scale(.92); opacity: .5; } } }
+        @media (forced-colors: active) { .term-tooltip { color: CanvasText; background: Canvas; border-color: CanvasText; box-shadow: none; } }
       </style>
-      <div class="wrap">
-        <button class="chip" type="button" aria-expanded="false" aria-haspopup="dialog">0 terms</button>
-        <section class="panel" role="dialog" aria-modal="false" aria-labelledby="tk-title">
-          <div class="header"><h2 id="tk-title">AI Chat Keyword Explainer</h2><div class="header-actions"><button class="minimize icon-button" type="button" aria-label="Minimize explanations">−</button><button class="close icon-button" type="button" aria-label="Close explanations">×</button></div></div>
-          <div class="cards" aria-live="polite"></div>
-        </section>
-        <aside class="term-tooltip" role="tooltip"></aside>
-      </div>`;
+      <aside class="term-tooltip" role="tooltip"></aside>`;
     document.documentElement.append(host);
-    const chip = shadow.querySelector(".chip");
-    const panel = shadow.querySelector(".panel");
-    const minimize = shadow.querySelector(".minimize");
-    const close = shadow.querySelector(".close");
-    chip.addEventListener("click", () => setOpen(true, true, true));
-    minimize.addEventListener("click", () => setOpen(false, true, true));
-    close.addEventListener("click", closePanel);
-    shadow.addEventListener("keydown", (event) => { if (event.key === "Escape" && panel.classList.contains("open")) setOpen(false, true, true); });
-    function setOpen(open, moveFocus = true, userAction = false) {
-      if (userAction) userCollapsed = !open;
-      userClosed = false;
-      panel.classList.toggle("open", open);
-      chip.classList.toggle("panel-open", open);
-      chip.classList.toggle("show", !open);
-      chip.setAttribute("aria-expanded", String(open));
-      host.dataset.uiState = open ? "expanded" : "minimized";
-      if (moveFocus) {
-        if (open) minimize.focus(); else chip.focus();
-      }
-    }
-    function closePanel() {
-      userClosed = true;
-      userCollapsed = false;
-      panel.classList.remove("open");
-      chip.classList.remove("show", "panel-open");
-      chip.setAttribute("aria-expanded", "false");
-      host.dataset.uiState = "closed";
-      shadow.querySelector(".wrap").style.visibility = "hidden";
-      findComposer()?.focus();
-    }
-    ui = { host, shadow, chip, panel, minimize, close, cards: shadow.querySelector(".cards"), wrap: shadow.querySelector(".wrap"), tooltip: shadow.querySelector(".term-tooltip"), setOpen, closePanel };
+    ui = { host, shadow, tooltip: shadow.querySelector(".term-tooltip") };
     document.addEventListener("pointerover", showInlineTooltip, true);
     document.addEventListener("pointerout", hideInlineTooltip, true);
     document.addEventListener("focusin", showInlineTooltip, true);
     document.addEventListener("focusout", hideInlineTooltip, true);
-    render();
+    document.addEventListener("keydown", hideTooltipOnEscape, true);
   }
 
   function unmount() {
@@ -351,81 +223,14 @@
     document.removeEventListener("pointerout", hideInlineTooltip, true);
     document.removeEventListener("focusin", showInlineTooltip, true);
     document.removeEventListener("focusout", hideInlineTooltip, true);
+    document.removeEventListener("keydown", hideTooltipOnEscape, true);
     ui?.host.remove();
     ui = null;
     clearTimeout(answerTimer);
     clearTimeout(maxWaitTimer);
     clearTimeout(draftTimer);
-    clearTimeout(inlineTimer);
-    anchorObserver?.disconnect();
-    anchorObserver = null;
-    observedAnchor = null;
+    clearAnnotationTimers();
     clearInlineAnnotations();
-  }
-
-  function render() {
-    if (!ui) return;
-    const count = state.slots.length;
-    ui.host.dataset.termCount = String(count);
-    ui.chip.textContent = count ? `${count} ${count === 1 ? "term" : "terms"}` : "Keyword Explainer";
-    ui.cards.replaceChildren(...state.slots.map(cardFor));
-    if (!userClosed) ui.setOpen(!userCollapsed, false);
-    schedulePosition();
-  }
-
-  function schedulePosition() {
-    if (!ui || positionFrame) return;
-    positionFrame = requestAnimationFrame(() => {
-      positionFrame = null;
-      positionBesideContent();
-    });
-  }
-
-  function positionBesideContent() {
-    if (!ui) return;
-    if (userClosed) {
-      ui.wrap.style.visibility = "hidden";
-      ui.host.dataset.placement = "closed";
-      return;
-    }
-    const pageZoom = Number.parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
-    ui.host.style.zoom = String(1 / pageZoom);
-    const composer = findComposer();
-    const anchor = findComposerAnchor(composer);
-    syncAnchorObserver(anchor);
-    if (!anchor) {
-      ui.wrap.style.visibility = "hidden";
-      ui.host.dataset.placement = "waiting-for-composer";
-      return;
-    }
-    syncVisualTheme(anchor);
-    const rect = anchor.getBoundingClientRect();
-    const gap = 12;
-    const edge = 12;
-    const available = Math.floor(window.innerWidth - rect.right - gap - edge);
-    const hasRightRail = available >= (userCollapsed ? 96 : 240);
-    const width = hasRightRail
-      ? (userCollapsed ? Math.min(140, available) : Math.min(320, Math.max(240, available)))
-      : Math.min(320, rect.width, window.innerWidth - edge * 2);
-    const left = hasRightRail
-      ? rect.right + gap
-      : Math.max(edge, Math.min(rect.right - width, window.innerWidth - width - edge));
-    let top = Math.max(edge, Math.min(rect.top, window.innerHeight - edge - 40));
-    ui.wrap.style.visibility = "visible";
-    ui.wrap.style.width = `${width}px`;
-    ui.wrap.style.left = `${left}px`;
-    if (hasRightRail) {
-      ui.wrap.style.setProperty("--available-height", `${Math.max(120, window.innerHeight - top - edge)}px`);
-    } else {
-      const availableAbove = Math.max(60, rect.top - gap - edge);
-      ui.wrap.style.setProperty("--available-height", `${availableAbove}px`);
-      ui.wrap.style.top = `${edge}px`;
-      const renderedHeight = Math.min(ui.wrap.getBoundingClientRect().height || availableAbove, availableAbove);
-      top = Math.max(edge, rect.top - gap - renderedHeight);
-    }
-    ui.wrap.style.top = `${top}px`;
-    ui.host.dataset.placement = hasRightRail ? "composer-right" : "composer-above";
-    ui.host.dataset.anchorTag = anchor.tagName.toLowerCase();
   }
 
   function syncVisualTheme(anchor) {
@@ -494,62 +299,42 @@
     return (lighter + 0.05) / (darker + 0.05);
   }
 
-  function syncAnchorObserver(anchor) {
-    if (observedAnchor === anchor) return;
-    anchorObserver?.disconnect();
-    observedAnchor = anchor;
-    if (!anchor || typeof ResizeObserver !== "function") return;
-    anchorObserver = new ResizeObserver(schedulePosition);
-    anchorObserver.observe(anchor);
+  function scheduleInlineAnnotations(node, text, delay) {
+    clearTimeout(annotationTimers.get(node));
+    const timer = setTimeout(() => {
+      annotationTimers.delete(node);
+      annotateMessage(node, text);
+    }, delay);
+    annotationTimers.set(node, timer);
   }
 
-  function cardFor(slot) {
-    const card = document.createElement("article");
-    card.className = "card";
-    const title = document.createElement("h3");
-    title.textContent = slot.definition?.displayTerm || slot.candidate?.term || "Term";
-    const body = document.createElement("p");
-    if (slot.status === "ready") body.textContent = slot.definition.oneLiner;
-    else if (slot.status === "loading") { body.textContent = "Finding a brief explanation…"; body.className = "muted"; }
-    else { body.textContent = slot.reason === "unconfigured" ? "Online lookup is not configured." : "An explanation is not available right now."; body.className = "muted"; }
-    card.append(title, body);
-    const source = slot.definition?.sources?.[0];
-    if (source && isSafeSource(source.url)) {
-      const link = document.createElement("a");
-      link.textContent = source.title || "Source";
-      link.href = source.url;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      card.append(link);
-    }
-    return card;
-  }
-
-  function scheduleInlineAnnotations(node, text, exchangeId, answerRevision) {
-    clearTimeout(inlineTimer);
-    inlineTimer = setTimeout(() => annotateAnswer(node, text, exchangeId, answerRevision), 1200);
-  }
-
-  async function annotateAnswer(node, text, exchangeId, answerRevision) {
-    if (!settings.onlineLookup || !node?.isConnected || visibleText(node) !== text) return;
+  async function annotateMessage(node, text) {
+    if (!node?.isConnected || visibleText(node) !== text) return;
     const candidates = core.answerCandidates(text, 5, glossary);
     if (!candidates.length) return;
-    const chunks = [];
-    for (let index = 0; index < candidates.length; index += 3) chunks.push(candidates.slice(index, index + 3));
-    const responses = await Promise.all(chunks.map((chunk) => send({
+    clearInlineAnnotations(node);
+    for (const candidate of candidates) {
+      if (candidate.definition) underlineFirstOccurrence(node, candidate.aliases, candidate.definition);
+    }
+    const unresolved = candidates.filter((candidate) => !candidate.definition).slice(0, 3);
+    if (!settings.onlineLookup || !unresolved.length) return;
+    const response = await send({
       type: "definition:resolve",
       payload: {
         requestId: crypto.randomUUID(),
-        terms: chunk.map(({ term, domain, senseHint }) => ({ term, domain, senseHint }))
+        terms: unresolved.map(({ term, domain, senseHint }) => ({ term, domain, senseHint }))
       }
-    })));
-    if (state.exchangeId !== exchangeId || state.answerRevision !== answerRevision || state.answerNode !== node || visibleText(node) !== text) return;
-    const results = responses.flatMap((response) => response?.results || []);
-    clearInlineAnnotations(node);
-    candidates.forEach((candidate, index) => {
-      const definition = results[index]?.status === "resolved" ? results[index].definition : null;
-      if (definition) underlineFirstOccurrence(node, candidate.aliases, definition);
     });
+    if (!node.isConnected || visibleText(node) !== text) return;
+    unresolved.forEach((candidate, index) => {
+      const result = response?.results?.[index];
+      if (result?.status === "resolved" && result.definition) underlineFirstOccurrence(node, candidate.aliases, result.definition);
+    });
+  }
+
+  function clearAnnotationTimers() {
+    for (const timer of annotationTimers.values()) clearTimeout(timer);
+    annotationTimers.clear();
   }
 
   function underlineFirstOccurrence(root, aliases, definition) {
@@ -571,7 +356,7 @@
         mark.dataset.aiLoadingCatchUpTerm = "true";
         mark.tabIndex = 0;
         mark.textContent = termText;
-        mark.style.textDecoration = "underline dotted #6d4aff 2px";
+        mark.style.textDecoration = "underline dotted currentColor 1.5px";
         mark.style.textUnderlineOffset = "3px";
         mark.style.cursor = "help";
         mark.setAttribute("aria-label", `${termText}: ${definition.oneLiner}`);
@@ -592,14 +377,16 @@
     const mark = event.target?.closest?.('[data-ai-loading-catch-up-term="true"]');
     const definition = mark && inlineDefinitions.get(mark);
     if (!definition || !ui?.tooltip) return;
+    syncVisualTheme(mark);
     ui.tooltip.textContent = definition.oneLiner;
     ui.tooltip.classList.add("show");
     const rect = mark.getBoundingClientRect();
-    const width = Math.min(290, window.innerWidth - 24);
+    const width = Math.min(270, window.innerWidth - 24);
     const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
-    const top = rect.bottom + 98 < window.innerHeight ? rect.bottom + 8 : Math.max(12, rect.top - 98);
     ui.tooltip.style.width = `${width}px`;
     ui.tooltip.style.left = `${left}px`;
+    const height = ui.tooltip.getBoundingClientRect().height || 72;
+    const top = rect.bottom + height + 8 < window.innerHeight ? rect.bottom + 8 : Math.max(12, rect.top - height - 8);
     ui.tooltip.style.top = `${top}px`;
   }
 
@@ -608,8 +395,8 @@
     if (mark && ui?.tooltip) ui.tooltip.classList.remove("show");
   }
 
-  function isSafeSource(url) {
-    try { return ["http:", "https:"].includes(new URL(url).protocol); } catch { return false; }
+  function hideTooltipOnEscape(event) {
+    if (event.key === "Escape" && ui?.tooltip?.classList.contains("show")) ui.tooltip.classList.remove("show");
   }
 
   start();

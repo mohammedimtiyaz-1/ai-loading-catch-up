@@ -1,14 +1,12 @@
 # AI Chat Keyword Explainer
 
-AI Chat Keyword Explainer is a local Chrome extension that explains moderately difficult and highly technical concepts while the user types and waits for an AI-chat answer. Version 0.4.3 opens automatically when a supported chat composer appears and remains expanded through response generation. It follows the current chat application's surface color, text color, and font, uses a responsive 240–320 px width, and moves above the composer on narrow layouts. After an answer stabilizes, it underlines up to five additional Tavily-backed concepts and shows a one-line explanation on hover or keyboard focus.
+AI Chat Keyword Explainer is a local Chrome extension that explains technical concepts directly inside AI conversations. Version 0.5.0 removes the separate explanation window: eligible terms are underlined in submitted questions and stable answers, and a compact one-line explanation appears on hover or keyboard focus. Recognition includes lower-complexity technical words and phrases such as semantic tuning, semantic search, model drift, schema, query, and workflow.
 
 ![AI Chat Keyword Explainer showing five underlined answer concepts and a Tavily-backed hover explanation](docs/screenshots/ai-loading-catch-up-inline-tavily.png)
 
-![The explanation panel automatically aligned to the right edge and top edge of the visible chat composer](docs/screenshots/ai-loading-catch-up-composer-anchor.png)
+The extension does not alter the live chat editor. After a question is submitted, cached glossary terms are underlined after an 850 ms quiet period. Streamed answers wait 1.4 seconds after the latest stable revision. Missing definitions are grouped into one request of at most three candidates per message, preventing repeated Tavily searches while the user types or while an answer streams. Ordinary conversational words remain excluded.
 
-Before typing, the panel shows its title. The minimize control collapses it to a small tab until reopened. The close control dismisses it for the current conversation; changing conversations expands it again. The extension analyzes the composer after a short pause while typing. Cached terms appear immediately, and moderately difficult acronyms, technical phrases, and specialized words can begin online resolution before submission when Online lookup is enabled. Ordinary conversational words remain excluded.
-
-Answer annotations appear only after the streamed text remains stable. The extension skips links, code, controls, and editable content when adding underlines. Tavily requests contain only candidate terms, domains, and short meaning hints; the transcript remains in the page.
+The extension skips links, code, controls, and editable content when adding underlines. Tavily requests contain only candidate terms, domains, and short meaning hints; the transcript remains in the page. Cached and curated definitions work without another provider request.
 
 ## Requirements
 

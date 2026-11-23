@@ -65,6 +65,12 @@ test("unknown extraction includes moderately complex searchable terms", async ()
   assert.ok(candidates.every((candidate) => candidate.domain === "software"));
 });
 
+test("unknown extraction keeps lower-complexity technical phrases together", async () => {
+  const { core } = await loadCore();
+  const candidates = core.unknownCandidates("When should I use semantic tuning and model drift monitoring?", 3);
+  assert.deepEqual(Array.from(candidates, (candidate) => candidate.term.toLowerCase()).slice(0, 2), ["semantic tuning", "model drift"]);
+});
+
 test("unknown extraction still ignores ordinary long words", async () => {
   const { core } = await loadCore();
   assert.equal(core.unknownCandidates("Please write a warm thank-you message with information about the application.", 3).length, 0);
@@ -77,4 +83,5 @@ test("answer extraction finds up to five useful concepts for inline explanations
   assert.equal(candidates.length, 5);
   assert.ok(candidates.some((candidate) => candidate.term.toLowerCase() === "retrieval"));
   assert.ok(candidates.every((candidate) => candidate.aliases.length > 0));
+  assert.ok(candidates.some((candidate) => candidate.definition?.oneLiner));
 });

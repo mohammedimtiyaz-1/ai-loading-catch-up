@@ -17,6 +17,15 @@
     "distributed", "federated", "governance", "heuristic", "interoperability", "metadata", "observability",
     "optimization", "pipeline", "reliability", "scalability", "semantic", "synchronization", "throughput", "workflow"
   ]);
+  const LOW_COMPLEX_TECHNICAL_WORDS = new Set([
+    "agent", "algorithm", "cache", "context", "dataset", "endpoint", "inference", "metadata", "model",
+    "pipeline", "plugin", "prompt", "query", "retrieval", "runtime", "schema", "semantic", "token", "training",
+    "tuning", "vector", "workflow"
+  ]);
+  const LOW_COMPLEX_TECHNICAL_PHRASES = [
+    "semantic tuning", "semantic search", "prompt tuning", "model tuning", "data pipeline", "feature store",
+    "model drift", "tool calling", "function calling", "context engineering", "agent workflow"
+  ];
   const COMMON_LONG_WORDS = new Set([
     "application", "available", "background", "because", "browser", "complex", "current", "different",
     "everything", "extension", "functionality", "important", "information", "keyword", "loading", "material", "message",
@@ -31,7 +40,7 @@
   function inferDomains(text) {
     const value = normalize(text);
     return Object.entries(DOMAIN_CUES)
-      .map(([domain, cues]) => ({ domain, score: cues.reduce((n, cue) => n + (value.includes(cue) ? 1 : 0), 0) }))
+      .map(([domain, cues]) => ({ domain, score: cues.reduce((n, cue) => n + ((cue.length <= 3 ? hasAlias(value, cue) : value.includes(cue)) ? 1 : 0), 0) }))
       .filter((item) => item.score > 0)
       .sort((a, b) => b.score - a.score)
       .map((item) => item.domain);
@@ -106,11 +115,17 @@
       candidates.push({ term: term.trim(), domain: domains[0] || "general", senseHint: `Meaning of ${term.trim()} in this subject` });
       return candidates.length === limit;
     };
-    for (const pattern of [acronymPattern, phrasePattern]) {
+    for (const pattern of [acronymPattern]) {
       for (const match of original.matchAll(pattern)) {
         const term = match[1].trim();
         if (addCandidate(term)) return candidates;
       }
+    }
+    for (const phrase of LOW_COMPLEX_TECHNICAL_PHRASES) {
+      if (hasAlias(original, phrase) && addCandidate(phrase)) return candidates;
+    }
+    for (const match of original.matchAll(phrasePattern)) {
+      if (addCandidate(match[1])) return candidates;
     }
     for (const match of original.matchAll(/\b[a-z][a-z-]{6,}\b/gi)) {
       const term = match[0];
@@ -122,7 +137,9 @@
   }
 
   function isMediumComplexWord(word, domains) {
-    if (COMMON_LONG_WORDS.has(word) || word.length < 7) return false;
+    if (COMMON_LONG_WORDS.has(word)) return false;
+    if (LOW_COMPLEX_TECHNICAL_WORDS.has(word)) return true;
+    if (word.length < 7) return false;
     if (MEDIUM_COMPLEX_WORDS.has(word)) return true;
     let score = word.length >= 10 ? 2 : 1;
     if (MEDIUM_SUFFIX.test(word)) score += 2;
@@ -136,7 +153,8 @@
       term: definition.displayTerm,
       domain: definition.domain,
       senseHint: `Meaning of ${definition.displayTerm} in this answer`,
-      aliases: definition.aliases
+      aliases: definition.aliases,
+      definition
     }));
     const aliases = candidates.flatMap((candidate) => candidate.aliases);
     for (const candidate of unknownCandidates(text, limit - candidates.length, aliases)) {
