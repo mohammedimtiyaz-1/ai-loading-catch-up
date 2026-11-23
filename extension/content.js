@@ -216,6 +216,7 @@
     installHighlightStyle();
     const host = document.createElement("div");
     host.id = UI_HOST_ID;
+    host.dataset.extensionVersion = chrome.runtime.getManifest().version;
     const shadow = host.attachShadow({ mode: "open" });
     shadow.innerHTML = `
       <style>
@@ -387,10 +388,12 @@
   function applyDraftDefinitions(composer, candidates) {
     clearDraftHighlights();
     if (composer.matches?.("textarea")) {
+      if (ui?.host) ui.host.dataset.integrationMode = "textarea-overlay";
       draftTextareaState = { composer, candidates };
       renderTextareaOverlay();
       return;
     }
+    if (ui?.host) ui.host.dataset.integrationMode = "contenteditable-overlay";
     for (const candidate of candidates) {
       const range = firstTextRange(composer, candidate.aliases);
       if (range) draftHighlightRanges.push({ range, definition: candidate.definition });
@@ -421,6 +424,7 @@
     draftHighlightRanges = [];
     draftTextareaState = null;
     draftTextareaHighlights = [];
+    if (ui?.host) ui.host.dataset.highlightCount = "0";
     document.getElementById(DRAFT_OVERLAY_ID)?.remove();
     document.getElementById(DRAFT_TEXTAREA_OVERLAY_ID)?.remove();
     if (ui?.tooltip?.dataset.owner === "draft") ui.tooltip.classList.remove("show");
@@ -455,6 +459,7 @@
       }
     }
     overlay.replaceChildren(...boxes);
+    if (ui?.host) ui.host.dataset.highlightCount = String(draftHighlightRanges.length);
   }
 
   function renderTextareaOverlay() {
@@ -508,6 +513,7 @@
     }
     content.append(document.createTextNode(text.slice(cursor)));
     overlay.replaceChildren(content);
+    if (ui?.host) ui.host.dataset.highlightCount = String(draftTextareaHighlights.length);
     overlay.scrollTop = composer.scrollTop;
     overlay.scrollLeft = composer.scrollLeft;
   }

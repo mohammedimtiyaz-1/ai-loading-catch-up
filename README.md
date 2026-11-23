@@ -1,6 +1,6 @@
 # AI Chat Keyword Explainer
 
-AI Chat Keyword Explainer is a local Chrome extension that explains technical concepts directly inside AI conversations. Version 0.5.2 removes the separate explanation window: eligible terms receive a visible tinted background and underline, and a compact one-line explanation appears on hover or keyboard focus. Recognition includes lower-complexity technical words and phrases such as semantic tuning, semantic search, model drift, schema, query, and workflow.
+AI Chat Keyword Explainer is a local Chrome extension that explains technical concepts directly inside AI conversations. Version 0.5.3 removes the separate explanation window: eligible terms receive a visible tinted background and underline, and a compact one-line explanation appears on hover or keyboard focus. Semantic tuning, semantic search, and model drift now have built-in sourced definitions, so they work without Tavily or an online-lookup setting.
 
 ![AI Chat Keyword Explainer highlighting RAG and tokens with a compact hover explanation](docs/screenshots/ai-chat-keyword-explainer-v0.5.2-inline-tooltip.png)
 
