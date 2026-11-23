@@ -58,6 +58,18 @@ test("unknown extraction preserves a specific multiword concept", async () => {
   assert.equal(candidates[0].domain, "ai");
 });
 
+test("unknown extraction includes moderately complex searchable terms", async () => {
+  const { core } = await loadCore();
+  const candidates = core.unknownCandidates("How do observability and interoperability improve software reliability?", 2);
+  assert.deepEqual(Array.from(candidates, (candidate) => candidate.term.toLowerCase()), ["observability", "interoperability"]);
+  assert.ok(candidates.every((candidate) => candidate.domain === "software"));
+});
+
+test("unknown extraction still ignores ordinary long words", async () => {
+  const { core } = await loadCore();
+  assert.equal(core.unknownCandidates("Please write a warm thank-you message with information about the application.", 3).length, 0);
+});
+
 test("answer extraction finds up to five useful concepts for inline explanations", async () => {
   const { glossary, core } = await loadCore();
   const text = "RAG uses embeddings in a vector database for retrieval and grounding to reduce hallucinations.";

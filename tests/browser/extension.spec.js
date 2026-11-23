@@ -204,6 +204,22 @@ test("ordinary question does not manufacture terms", async () => {
   await page.close();
 });
 
+test("moderately complex draft terms are eligible for online lookup", async () => {
+  let [worker] = context.serviceWorkers();
+  if (!worker) worker = await context.waitForEvent("serviceworker");
+  await worker.evaluate(() => chrome.storage.local.set({ onlineLookup: true, backendUrl: "http://127.0.0.1:9" }));
+  const page = await context.newPage();
+  await page.goto("http://127.0.0.1:4311/");
+  await page.locator("#question").fill("How do observability and interoperability improve software reliability?");
+  const host = page.locator("#ai-loading-catch-up-root");
+  await expect(host.locator("h3")).toHaveCount(2, { timeout: 3000 });
+  await expect(host.locator("h3").filter({ hasText: "observability" })).toHaveCount(1);
+  await expect(host.locator("h3").filter({ hasText: "interoperability" })).toHaveCount(1);
+  await expect(page.locator('[data-role="user-message"]')).toHaveCount(0);
+  await page.close();
+  await worker.evaluate(() => chrome.storage.local.set({ onlineLookup: false, backendUrl: "http://127.0.0.1:4311" }));
+});
+
 test("completed answers underline five Tavily-backed terms with hover explanations", async () => {
   await context.route("http://127.0.0.1:4311/v1/definitions/resolve", async (route) => {
     const body = route.request().postDataJSON();

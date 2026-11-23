@@ -1,20 +1,21 @@
 # Verification report
 
-Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `757f9184ce8e072bc4ab727b206ee4e76ecf2b5a9dad4f5ab574d071b3333d64`.
+Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `5dab75d77d91d21ceac7d421898e950e436a2643f7a6b92503384a2a9d448f93`.
 
 ## Automated evidence
 
 | Area | Observation | Result |
 | --- | --- | --- |
-| Core selection | 50+ sourced concepts, RAG example, alias/sense deduplication, authentication versus AI token, no-keyword prompt, stable third slot | Pass, 7 Node checks |
+| Core selection | 50+ sourced concepts, RAG example, alias/sense deduplication, authentication versus AI token, medium-complexity eligibility, ordinary-word filtering, stable third slot | Pass, 9 Node checks |
 | Backend | request bounds, malformed provider result, missing credentials, cache reuse, atomic monthly budget, concurrent miss deduplication, five-minute negative cache | Pass, 9 Node checks |
 | Installed extension | persistent Chromium context loaded the unpacked MV3 extension against the simulator | Pass |
 | Streaming | two question cards remained while the streamed answer added vector database as the third | Pass |
 | Lifecycle | regeneration, route navigation, disable/re-enable and duplicate prevention | Pass |
 | Accessibility | keyboard opening, Escape, focus restoration, visible popover at 200% page zoom | Pass |
-| Cached latency | submitted RAG question to visible two-term panel | 82 ms observed; target was 300 ms |
+| Cached latency | submitted RAG question to visible two-term panel | 85 ms observed; target was 300 ms |
 | Live Tavily lookup | `differential privacy` through the application resolver | resolved with a short explanation and supporting source; immediate repeat returned `cache: backend` |
 | Pre-submit lookup | typed `federated learning framework` without submitting | extension showed one sourced Tavily-backed card while the simulator still contained zero user messages |
+| Medium-complexity lookup | typed `observability` and `interoperability` before submitting | both specialized terms became lookup-eligible; ordinary long words remained excluded |
 | Answer annotations | completed RAG answer with deterministic Tavily resolver responses | five answer concepts were underlined; hover exposed a one-line tooltip |
 | Composer anchoring | representative ChatGPT, Claude, and Copilot input shells | panel opened automatically with its top edge aligned to the composer and its left edge exactly 12 px to the right |
 | Delayed and narrow composers | delayed ChatGPT mount, 240/300/320 px adaptive widths, constrained viewport | title-only panel opened after mount; constrained layout moved above and remained clear of the input |
@@ -23,7 +24,7 @@ Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled
 | Package | ZIP integrity and direct unpacked files | Pass |
 | Dependencies | `npm audit --omit=dev` | 0 vulnerabilities |
 
-The final local result was 16/16 Node checks and 11/11 installed-extension browser checks. The ZIP integrity check reported no errors.
+The final local result was 18/18 Node checks and 12/12 installed-extension browser checks. The ZIP integrity check reported no errors.
 
 ## Review and validation
 
