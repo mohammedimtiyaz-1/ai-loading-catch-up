@@ -2,6 +2,9 @@
   const core = globalThis.ThreeKeywordsCore;
   const glossary = globalThis.ThreeKeywordsGlossary || [];
   const UI_HOST_ID = "ai-loading-catch-up-root";
+  const HIGHLIGHT_STYLE_ID = "ai-loading-catch-up-highlight-style";
+  const DRAFT_HIGHLIGHT_NAME = "ai-chat-keyword-explainer-draft";
+  const DEBOUNCE_MS = 3000;
   let settings = { enabled: true, onlineLookup: false };
   let observer = null;
   let route = location.href;
@@ -16,6 +19,7 @@
   let ui = null;
   const inlineDefinitions = new WeakMap();
   const annotationTimers = new Map();
+  let draftHighlightRanges = [];
 
   function freshState() {
     return { exchangeId: null, questionRevision: 0, answerRevision: 0, slots: [], answerNode: null, answerText: "", ended: false, isDraft: false };
@@ -112,7 +116,8 @@
   function scheduleDraftProcessing(composer) {
     if (!composer || composerText(composer) === lastDraftText) return;
     clearTimeout(draftTimer);
-    draftTimer = setTimeout(() => processDraft(composer), 450);
+    clearDraftHighlights();
+    draftTimer = setTimeout(() => processDraft(composer), DEBOUNCE_MS);
   }
 
   function processDraft(composer) {
@@ -123,6 +128,7 @@
     }
     const revision = ++draftRevision;
     state = { ...freshState(), exchangeId: `draft-${revision}`, questionRevision: revision, isDraft: true };
+    annotateComposer(composer, text, revision);
   }
 
   function checkForQuestion() {
@@ -144,7 +150,8 @@
     lastDraftText = questionText.replace(/\s+/g, " ").trim();
     const id = node.dataset.exchangeId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     state = { ...freshState(), exchangeId: id, questionRevision: 1 };
-    scheduleInlineAnnotations(node, questionText, 850);
+    clearDraftHighlights();
+    scheduleInlineAnnotations(node, questionText, DEBOUNCE_MS);
   }
 
   function scheduleAnswerProcessing() {
@@ -174,7 +181,7 @@
     state.answerNode = node;
     state.answerText = text;
     state.answerRevision ||= 1;
-    scheduleInlineAnnotations(node, text, 1400);
+    scheduleInlineAnnotations(node, text, DEBOUNCE_MS);
   }
 
   function checkRoute() {
@@ -184,6 +191,7 @@
     lastDraftText = "";
     clearTimeout(draftTimer);
     clearAnnotationTimers();
+    clearDraftHighlights();
     clearInlineAnnotations();
     baseline();
   }
@@ -198,6 +206,7 @@
 
   function mount() {
     if (document.getElementById(UI_HOST_ID)) return;
+    installHighlightStyle();
     const host = document.createElement("div");
     host.id = UI_HOST_ID;
     const shadow = host.attachShadow({ mode: "open" });
@@ -215,6 +224,7 @@
     document.addEventListener("pointerout", hideInlineTooltip, true);
     document.addEventListener("focusin", showInlineTooltip, true);
     document.addEventListener("focusout", hideInlineTooltip, true);
+    document.addEventListener("pointermove", showDraftTooltip, true);
     document.addEventListener("keydown", hideTooltipOnEscape, true);
   }
 
@@ -223,14 +233,32 @@
     document.removeEventListener("pointerout", hideInlineTooltip, true);
     document.removeEventListener("focusin", showInlineTooltip, true);
     document.removeEventListener("focusout", hideInlineTooltip, true);
+    document.removeEventListener("pointermove", showDraftTooltip, true);
     document.removeEventListener("keydown", hideTooltipOnEscape, true);
+    document.getElementById(HIGHLIGHT_STYLE_ID)?.remove();
     ui?.host.remove();
     ui = null;
     clearTimeout(answerTimer);
     clearTimeout(maxWaitTimer);
     clearTimeout(draftTimer);
     clearAnnotationTimers();
+    clearDraftHighlights();
     clearInlineAnnotations();
+  }
+
+  function installHighlightStyle() {
+    if (document.getElementById(HIGHLIGHT_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = HIGHLIGHT_STYLE_ID;
+    style.textContent = `
+      ::highlight(${DRAFT_HIGHLIGHT_NAME}) {
+        color: inherit;
+        background-color: rgba(124, 92, 255, 0.24);
+        text-decoration: underline dotted currentColor 1.5px;
+        text-underline-offset: 3px;
+      }
+    `;
+    document.documentElement.append(style);
   }
 
   function syncVisualTheme(anchor) {
@@ -299,6 +327,62 @@
     return (lighter + 0.05) / (darker + 0.05);
   }
 
+  async function annotateComposer(composer, text, revision) {
+    if (!composer?.isContentEditable || !globalThis.CSS?.highlights || typeof globalThis.Highlight !== "function") return;
+    const candidates = core.answerCandidates(text, 5, glossary);
+    const available = candidates.filter((candidate) => candidate.definition);
+    applyDraftDefinitions(composer, available);
+    const unresolved = candidates.filter((candidate) => !candidate.definition).slice(0, 3);
+    if (!settings.onlineLookup || !unresolved.length) return;
+    const response = await send({
+      type: "definition:resolve",
+      payload: {
+        requestId: crypto.randomUUID(),
+        terms: unresolved.map(({ term, domain, senseHint }) => ({ term, domain, senseHint }))
+      }
+    });
+    if (draftRevision !== revision || !composer.isConnected || composerText(composer) !== text) return;
+    unresolved.forEach((candidate, index) => {
+      const result = response?.results?.[index];
+      if (result?.status === "resolved" && result.definition) available.push({ ...candidate, definition: result.definition });
+    });
+    applyDraftDefinitions(composer, available);
+  }
+
+  function applyDraftDefinitions(composer, candidates) {
+    clearDraftHighlights();
+    for (const candidate of candidates) {
+      const range = firstTextRange(composer, candidate.aliases);
+      if (range) draftHighlightRanges.push({ range, definition: candidate.definition });
+    }
+    if (draftHighlightRanges.length) CSS.highlights.set(DRAFT_HIGHLIGHT_NAME, new Highlight(...draftHighlightRanges.map((item) => item.range)));
+  }
+
+  function firstTextRange(root, aliases) {
+    const ordered = [...new Set(aliases)].sort((a, b) => b.length - a.length);
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let textNode;
+    while ((textNode = walker.nextNode())) {
+      for (const alias of ordered) {
+        const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const match = new RegExp(`(^|[^a-z0-9])(${escaped})(?=$|[^a-z0-9])`, "i").exec(textNode.data);
+        if (!match) continue;
+        const start = match.index + match[1].length;
+        const range = document.createRange();
+        range.setStart(textNode, start);
+        range.setEnd(textNode, start + match[2].length);
+        return range;
+      }
+    }
+    return null;
+  }
+
+  function clearDraftHighlights() {
+    globalThis.CSS?.highlights?.delete(DRAFT_HIGHLIGHT_NAME);
+    draftHighlightRanges = [];
+    if (ui?.tooltip?.dataset.owner === "draft") ui.tooltip.classList.remove("show");
+  }
+
   function scheduleInlineAnnotations(node, text, delay) {
     clearTimeout(annotationTimers.get(node));
     const timer = setTimeout(() => {
@@ -358,6 +442,10 @@
         mark.textContent = termText;
         mark.style.textDecoration = "underline dotted currentColor 1.5px";
         mark.style.textUnderlineOffset = "3px";
+        mark.style.backgroundColor = "rgba(124, 92, 255, 0.24)";
+        mark.style.borderRadius = "3px";
+        mark.style.boxDecorationBreak = "clone";
+        mark.style.webkitBoxDecorationBreak = "clone";
         mark.style.cursor = "help";
         mark.setAttribute("aria-label", `${termText}: ${definition.oneLiner}`);
         inlineDefinitions.set(mark, definition);
@@ -377,10 +465,29 @@
     const mark = event.target?.closest?.('[data-ai-loading-catch-up-term="true"]');
     const definition = mark && inlineDefinitions.get(mark);
     if (!definition || !ui?.tooltip) return;
-    syncVisualTheme(mark);
+    presentTooltip(mark.getBoundingClientRect(), definition, "inline", mark);
+  }
+
+  function showDraftTooltip(event) {
+    if (!draftHighlightRanges.length || !ui?.tooltip || event.target?.closest?.('[data-ai-loading-catch-up-term="true"]')) return;
+    const caret = document.caretPositionFromPoint?.(event.clientX, event.clientY);
+    const fallback = !caret ? document.caretRangeFromPoint?.(event.clientX, event.clientY) : null;
+    const node = caret?.offsetNode || fallback?.startContainer;
+    const offset = caret?.offset ?? fallback?.startOffset;
+    const item = node && draftHighlightRanges.find(({ range }) => range.startContainer === node && offset >= range.startOffset && offset <= range.endOffset);
+    if (!item) {
+      if (ui.tooltip.dataset.owner === "draft") ui.tooltip.classList.remove("show");
+      return;
+    }
+    presentTooltip(item.range.getBoundingClientRect(), item.definition, "draft", node.parentElement);
+  }
+
+  function presentTooltip(rect, definition, owner, themeNode) {
+    if (!ui?.tooltip || !rect) return;
+    syncVisualTheme(themeNode || document.body);
+    ui.tooltip.dataset.owner = owner;
     ui.tooltip.textContent = definition.oneLiner;
     ui.tooltip.classList.add("show");
-    const rect = mark.getBoundingClientRect();
     const width = Math.min(270, window.innerWidth - 24);
     const left = Math.max(12, Math.min(rect.left, window.innerWidth - width - 12));
     ui.tooltip.style.width = `${width}px`;
@@ -392,7 +499,7 @@
 
   function hideInlineTooltip(event) {
     const mark = event.target?.closest?.('[data-ai-loading-catch-up-term="true"]');
-    if (mark && ui?.tooltip) ui.tooltip.classList.remove("show");
+    if (mark && ui?.tooltip?.dataset.owner === "inline") ui.tooltip.classList.remove("show");
   }
 
   function hideTooltipOnEscape(event) {

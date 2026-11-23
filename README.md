@@ -1,10 +1,10 @@
 # AI Chat Keyword Explainer
 
-AI Chat Keyword Explainer is a local Chrome extension that explains technical concepts directly inside AI conversations. Version 0.5.0 removes the separate explanation window: eligible terms are underlined in submitted questions and stable answers, and a compact one-line explanation appears on hover or keyboard focus. Recognition includes lower-complexity technical words and phrases such as semantic tuning, semantic search, model drift, schema, query, and workflow.
+AI Chat Keyword Explainer is a local Chrome extension that explains technical concepts directly inside AI conversations. Version 0.5.1 removes the separate explanation window: eligible terms receive a visible tinted background and underline, and a compact one-line explanation appears on hover or keyboard focus. Recognition includes lower-complexity technical words and phrases such as semantic tuning, semantic search, model drift, schema, query, and workflow.
 
 ![AI Chat Keyword Explainer showing five underlined answer concepts and a Tavily-backed hover explanation](docs/screenshots/ai-loading-catch-up-inline-tavily.png)
 
-The extension does not alter the live chat editor. After a question is submitted, cached glossary terms are underlined after an 850 ms quiet period. Streamed answers wait 1.4 seconds after the latest stable revision. Missing definitions are grouped into one request of at most three candidates per message, preventing repeated Tavily searches while the user types or while an answer streams. Ordinary conversational words remain excluded.
+The extension uses the browser's non-destructive Highlight API for ChatGPT-style contenteditable composers, so eligible draft terms become visible without changing the editor DOM. Drafts, submitted questions, and streamed answers all wait for a three-second quiet period. Missing definitions are grouped into one request of at most three candidates per message, preventing repeated Tavily searches while the user types or while an answer streams. Ordinary conversational words remain excluded.
 
 The extension skips links, code, controls, and editable content when adding underlines. Tavily requests contain only candidate terms, domains, and short meaning hints; the transcript remains in the page. Cached and curated definitions work without another provider request.
 

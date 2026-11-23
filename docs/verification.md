@@ -1,6 +1,6 @@
 # Verification report
 
-Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `68a8d18fc5a33117d4c1ee7662fdcfd62bea0b1370cd605186303c29b529af85`.
+Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `85e8e98936d9845c3aaddcd51ae8b953b66c10a756a2349fe80a05bd662a26fd`.
 
 ## Automated evidence
 
@@ -10,9 +10,9 @@ Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled
 | Backend | request bounds, malformed provider result, missing credentials, cache reuse, atomic monthly budget, concurrent miss deduplication, five-minute negative cache | Pass, 9 Node checks |
 | Installed extension | persistent Chromium context loaded the unpacked MV3 extension against the simulator | Pass |
 | Inline-only UI | extension mounted only its tooltip host | no panel, chip, or separate window was rendered |
-| Editor safety | typed technical terms before submission | composer value and DOM remained unchanged; no draft annotation was injected |
-| Question annotations | submitted RAG question | RAG and hallucinations were underlined after the 850 ms quiet period |
-| Streaming | observed an answer while tokens were arriving | no early annotations; stable answer terms appeared after the 1.4-second quiet period |
+| Draft highlighting | typed technical terms in a ChatGPT-style contenteditable | after three quiet seconds, the Highlight API added visible styling without changing the editor DOM |
+| Question annotations | submitted RAG question | RAG and hallucinations received a tinted background and underline after three quiet seconds |
+| Streaming | observed an answer while tokens were arriving | no early annotations; stable answer terms appeared after the three-second quiet period |
 | Lifecycle | regeneration, route navigation, disable/re-enable and duplicate prevention | question and answer annotations remained independent; route changes cleared stale marks |
 | Accessibility | hover, keyboard focus, Escape, responsive tooltip width | compact one-line tooltip remained at or below 270 px and dismissed with Escape |
 | Live Tavily lookup | `differential privacy` through the application resolver | resolved with a short explanation and supporting source; immediate repeat returned `cache: backend` |
@@ -22,7 +22,7 @@ Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled
 | Package | ZIP integrity and direct unpacked files | Pass |
 | Dependencies | `npm audit --omit=dev` | 0 vulnerabilities |
 
-The final local result was 19/19 Node checks and 8/8 installed-extension browser checks. The ZIP integrity check reported no errors.
+The final local result was 19/19 Node checks and 9/9 installed-extension browser checks. The ZIP integrity check reported no errors.
 
 ## Review and validation
 
@@ -32,7 +32,7 @@ The extension requests only `storage` plus explicit loopback and ChatGPT hosts. 
 
 ## Partially evaluated or deferred
 
-- ChatGPT, Claude, and Copilot selectors remain implemented, but version 0.5.0 was exercised against the local lifecycle simulator rather than signed-in live sessions.
+- ChatGPT, Claude, and Copilot selectors remain implemented. Version 0.5.1 was exercised against the local lifecycle simulator and a representative ChatGPT contenteditable draft; signed-in live-session behavior remains dependent on the installed extension being reloaded.
 - One configured live Tavily miss was verified through the application resolver, followed by a backend-cache hit. Routine provider, failure, timeout, cache and budget checks remain deterministic so the test suite does not spend credits.
 - Persistence logic writes individual definitions to `chrome.storage.local`, reconstructs the memory cache after worker restart, and implements bounded batch eviction. Automated Chromium worker termination and a full 1,000-entry/4 MiB eviction run were not performed.
 - Tooltip colors and typography are derived from the marked chat content; screenshot comparison in both themes was not performed.
