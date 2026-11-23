@@ -149,7 +149,6 @@
     const text = composerText(composer);
     lastDraftText = text;
     if (!text) {
-      if (state.isDraft) { state = freshState(); render(); }
       return;
     }
     const revision = ++draftRevision;

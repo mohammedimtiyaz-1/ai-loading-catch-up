@@ -78,6 +78,13 @@ test("draft terms appear before the question is submitted", async () => {
   expect(positions.placement).toBe("composer-above");
   expect(Math.abs(positions.panelRight - positions.contentRight)).toBeLessThan(1);
   expect(positions.panelBottom).toBeLessThanOrEqual(positions.contentTop - 11);
+  await page.locator("#question").fill("");
+  await page.waitForTimeout(700);
+  await expect(host.locator("h3").filter({ hasText: "RAG" })).toHaveCount(1);
+  await expect(host.locator("h3").filter({ hasText: "Hallucination" })).toHaveCount(1);
+  await page.locator("#question").fill("What is an API?");
+  await expect(host.locator("h3").filter({ hasText: "API" })).toHaveCount(1, { timeout: 2000 });
+  await expect(host.locator("h3").filter({ hasText: "RAG" })).toHaveCount(0);
   await page.close();
 });
 
