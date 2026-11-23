@@ -71,7 +71,7 @@
     return {
       user: '[data-message-author-role="user"], article[data-turn="user"]',
       assistant: '[data-message-author-role="assistant"], article[data-turn="assistant"]',
-      composer: '#prompt-textarea, [data-testid="prompt-textarea"], div.ProseMirror[contenteditable="true"], [contenteditable="true"][role="textbox"]'
+      composer: '#prompt-textarea, #mobile-composer-prompt, [data-testid="prompt-textarea"], [data-testid="composer-input"], div.ProseMirror[contenteditable="true"], [contenteditable="true"][role="textbox"]'
     };
   }
 

@@ -115,7 +115,7 @@ test("panel width adapts and narrow layouts move it above the composer", async (
 
 test("composer anchoring matches ChatGPT, Claude and Copilot input shells", async () => {
   const fixtures = [
-    { host: "chatgpt.com", input: '<div id="prompt-textarea" role="textbox" contenteditable="true"></div>', shell: 'data-type="unified-composer"', selector: "#prompt-textarea" },
+    { host: "chatgpt.com", input: '<div id="mobile-composer-prompt" role="textbox" contenteditable="true"></div>', shell: 'data-type="unified-composer"', selector: "#mobile-composer-prompt" },
     { host: "claude.ai", input: '<div data-testid="chat-input" role="textbox" contenteditable="true"></div>', shell: 'data-testid="composer"', selector: '[data-testid="chat-input"]' },
     { host: "copilot.microsoft.com", input: '<textarea id="userInput"></textarea>', shell: 'data-testid="composer-shell"', selector: "#userInput" }
   ];
