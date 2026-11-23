@@ -1,6 +1,6 @@
 # Verification report
 
-Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `f7e22381d9a6a56c092e20f2e427a1291d59bae7282f1462cdd44732ac78d6e9`.
+Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `757f9184ce8e072bc4ab727b206ee4e76ecf2b5a9dad4f5ab574d071b3333d64`.
 
 ## Automated evidence
 
@@ -12,17 +12,18 @@ Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled
 | Streaming | two question cards remained while the streamed answer added vector database as the third | Pass |
 | Lifecycle | regeneration, route navigation, disable/re-enable and duplicate prevention | Pass |
 | Accessibility | keyboard opening, Escape, focus restoration, visible popover at 200% page zoom | Pass |
-| Cached latency | submitted RAG question to visible two-term panel | 87 ms observed; target was 300 ms |
+| Cached latency | submitted RAG question to visible two-term panel | 82 ms observed; target was 300 ms |
 | Live Tavily lookup | `differential privacy` through the application resolver | resolved with a short explanation and supporting source; immediate repeat returned `cache: backend` |
 | Pre-submit lookup | typed `federated learning framework` without submitting | extension showed one sourced Tavily-backed card while the simulator still contained zero user messages |
 | Answer annotations | completed RAG answer with deterministic Tavily resolver responses | five answer concepts were underlined; hover exposed a one-line tooltip |
 | Composer anchoring | representative ChatGPT, Claude, and Copilot input shells | panel opened automatically with its top edge aligned to the composer and its left edge exactly 12 px to the right |
-| Delayed and narrow composers | delayed ChatGPT mount, 240/300/340 px adaptive widths, constrained viewport | title-only panel opened after mount; constrained layout moved above and remained clear of the input |
+| Delayed and narrow composers | delayed ChatGPT mount, 240/300/320 px adaptive widths, constrained viewport | title-only panel opened after mount; constrained layout moved above and remained clear of the input |
+| Visual integration | application surface, text color, font family, and viewport bounds | panel matched the host application's dark surface and typography while remaining within the 240–320 px desktop width |
 | Panel state | persistent expansion, minimize, reopen, close, Escape, focus restoration, route change | response streaming preserved the open panel; minimize produced a tab; close dismissed it; a new conversation restored the expanded title-only panel |
 | Package | ZIP integrity and direct unpacked files | Pass |
 | Dependencies | `npm audit --omit=dev` | 0 vulnerabilities |
 
-The final local result was 16/16 Node checks and 10/10 installed-extension browser checks. The ZIP integrity check reported no errors.
+The final local result was 16/16 Node checks and 11/11 installed-extension browser checks. The ZIP integrity check reported no errors.
 
 ## Review and validation
 

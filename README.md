@@ -1,6 +1,6 @@
 # AI Chat Keyword Explainer
 
-AI Chat Keyword Explainer is a local Chrome extension that explains difficult concepts while the user types and waits for an AI-chat answer. Version 0.4.1 opens automatically when a supported chat composer appears and remains expanded through response generation. It aligns 12 px to the composer's right when space permits and moves above it on narrow layouts. After an answer stabilizes, it underlines up to five additional Tavily-backed concepts and shows a one-line explanation on hover or keyboard focus.
+AI Chat Keyword Explainer is a local Chrome extension that explains difficult concepts while the user types and waits for an AI-chat answer. Version 0.4.2 opens automatically when a supported chat composer appears and remains expanded through response generation. It follows the current chat application's surface color, text color, and font, uses a responsive 240–320 px width, and moves above the composer on narrow layouts. After an answer stabilizes, it underlines up to five additional Tavily-backed concepts and shows a one-line explanation on hover or keyboard focus.
 
 ![AI Chat Keyword Explainer showing five underlined answer concepts and a Tavily-backed hover explanation](docs/screenshots/ai-loading-catch-up-inline-tavily.png)
 

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Chat Keyword Explainer",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Explain difficult keywords in ChatGPT, Claude, and Copilot while you type and read AI answers.",
   "permissions": ["storage"],
   "host_permissions": ["http://127.0.0.1/*", "http://localhost/*"],

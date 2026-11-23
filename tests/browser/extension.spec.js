@@ -115,8 +115,8 @@ test("panel width adapts and narrow layouts move it above the composer", async (
   await page.setViewportSize({ width: 1280, height: 800 });
   await page.goto("https://chatgpt.com/geometry");
   const host = page.locator("#ai-loading-catch-up-root");
-  for (const expectedWidth of [240, 300, 340]) {
-    const available = expectedWidth === 340 ? 400 : expectedWidth;
+  for (const expectedWidth of [240, 300, 320]) {
+    const available = expectedWidth === 320 ? 400 : expectedWidth;
     await page.locator(".shell").evaluate((node, right) => {
       node.style.left = "200px";
       node.style.width = `${right - 200}px`;
@@ -134,6 +134,30 @@ test("panel width adapts and narrow layouts move it above the composer", async (
   });
   expect(geometry.wrapBottom).toBeLessThanOrEqual(geometry.shellTop - 11);
   expect(Math.abs(geometry.wrapRight - geometry.shellRight)).toBeLessThan(1);
+  await page.close();
+  await context.unroute("https://chatgpt.com/**");
+});
+
+test("panel follows the host application's colors and typography", async () => {
+  await context.route("https://chatgpt.com/**", (route) => route.fulfill({
+    contentType: "text/html",
+    body: '<!doctype html><style>body{margin:0;background:rgb(18,19,20);color:rgb(232,233,234);font-family:Georgia,serif}.shell{position:fixed;left:220px;top:500px;width:620px;padding:16px;box-sizing:border-box;border-radius:24px;background:rgb(42,43,44);color:rgb(232,233,234);font:14px Georgia,serif}</style><div class="shell" data-type="unified-composer"><div id="prompt-textarea" role="textbox" contenteditable="true"></div></div>'
+  }));
+  const page = await context.newPage();
+  await page.goto("https://chatgpt.com/application-theme");
+  const host = page.locator("#ai-loading-catch-up-root");
+  const panel = host.locator(".panel");
+  await expect(panel).toBeVisible();
+  await expect(host).toHaveAttribute("data-theme", "dark");
+  const darkTheme = await panel.evaluate((node) => {
+    const style = getComputedStyle(node);
+    return { background: style.backgroundColor, color: style.color, fontFamily: style.fontFamily, width: node.getBoundingClientRect().width };
+  });
+  expect(darkTheme.background).toBe("rgb(42, 43, 44)");
+  expect(darkTheme.color).toBe("rgb(232, 233, 234)");
+  expect(darkTheme.fontFamily).toContain("Georgia");
+  expect(darkTheme.width).toBeGreaterThanOrEqual(240);
+  expect(darkTheme.width).toBeLessThanOrEqual(320);
   await page.close();
   await context.unroute("https://chatgpt.com/**");
 });

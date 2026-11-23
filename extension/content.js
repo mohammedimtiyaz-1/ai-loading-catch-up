@@ -273,29 +273,30 @@
     const shadow = host.attachShadow({ mode: "open" });
     shadow.innerHTML = `
       <style>
-        :host { all: initial; }
-        .wrap { position: fixed; top: 24px; left: 24px; z-index: 2147483646; width: 320px; max-width: calc(100vw - 24px); font: 13px/1.38 system-ui, sans-serif; color: #17151f; }
+        :host { all: initial; color-scheme: var(--akx-color-scheme, light); }
+        .wrap { position: fixed; top: 24px; left: 24px; z-index: 2147483646; width: 300px; max-width: calc(100vw - 24px); font-family: var(--akx-font-family, system-ui, sans-serif); font-size: var(--akx-font-size, 13px); line-height: 1.4; color: var(--akx-text, #17151f); }
         button { font: inherit; }
-        .chip { display: none; margin: 0; border: 0; border-radius: 999px; padding: 9px 13px; color: white; background: #6d4aff; box-shadow: 0 6px 22px #0003; cursor: pointer; font-weight: 750; }
+        .chip { display: none; margin: 0; border: 1px solid var(--akx-border, #d9d4e8); border-radius: 999px; padding: 8px 12px; color: var(--akx-text, #17151f); background: var(--akx-surface, #fff); box-shadow: 0 6px 22px #0003; cursor: pointer; font-weight: 700; }
         .chip.show { display: block; }
         .chip.panel-open { display: none; }
-        .panel { display: none; width: 100%; max-height: min(460px, var(--available-height, calc(100vh - 24px))); overflow: auto; box-sizing: border-box; padding: 12px; border: 1px solid #d9d4e8; border-radius: 16px; background: #fff; box-shadow: 0 16px 50px #0003; }
+        .panel { display: none; width: 100%; max-height: min(420px, 55vh, var(--available-height, calc(100vh - 24px))); overflow: auto; box-sizing: border-box; padding: 11px; border: 1px solid var(--akx-border, #d9d4e8); border-radius: 15px; color: var(--akx-text, #17151f); background: var(--akx-surface, #fff); box-shadow: 0 16px 50px #0003; scrollbar-width: thin; }
         .panel.open { display: block; }
         .header { display: flex; justify-content: space-between; align-items: center; margin: 0 0 8px; }
-        h2 { font-size: 14px; margin: 0; }
+        h2 { font-size: 1em; line-height: 1.25; margin: 0; }
         .header-actions { display: flex; align-items: center; gap: 2px; }
-        .icon-button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; color: inherit; background: transparent; cursor: pointer; font-size: 18px; line-height: 1; }
-        .icon-button:hover { background: #0000000d; }
-        .card { padding: 11px 0; border-top: 1px solid #ece8f2; }
+        .icon-button { display: grid; place-items: center; width: 27px; height: 27px; padding: 0; border: 0; border-radius: 8px; color: inherit; background: transparent; cursor: pointer; font-size: 17px; line-height: 1; }
+        .icon-button:hover { background: var(--akx-hover, #0000000d); }
+        .card { padding: 10px 0; border-top: 1px solid var(--akx-border, #ece8f2); }
         .card:first-of-type { border-top: 0; }
-        h3 { font-size: 13px; margin: 0 0 4px; }
+        h3 { font-size: 1em; line-height: 1.3; margin: 0 0 4px; }
         p { margin: 0; }
-        .muted { color: #6d6878; }
-        a { display: inline-block; margin-top: 6px; color: #5533dd; }
-        .term-tooltip { display: none; position: fixed; z-index: 2147483647; width: min(290px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px 12px; border: 1px solid #d9d4e8; border-radius: 10px; color: #17151f; background: #fff; box-shadow: 0 10px 34px #0004; font: 12px/1.4 system-ui, sans-serif; pointer-events: none; }
+        .muted { color: var(--akx-muted, #6d6878); }
+        a { display: inline-block; margin-top: 6px; color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+        .term-tooltip { display: none; position: fixed; z-index: 2147483647; width: min(290px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px 12px; border: 1px solid var(--akx-border, #d9d4e8); border-radius: 10px; color: var(--akx-text, #17151f); background: var(--akx-surface, #fff); box-shadow: 0 10px 34px #0004; font: var(--akx-font-size, 12px)/1.4 var(--akx-font-family, system-ui, sans-serif); pointer-events: none; }
         .term-tooltip.show { display: block; }
         button:focus-visible, a:focus-visible { outline: 3px solid #ffb000; outline-offset: 2px; }
-        @media (prefers-color-scheme: dark) { .panel, .term-tooltip { background: #24212d; color: #f7f4ff; border-color: #494354; } .card { border-color: #494354; } .muted { color: #c6bfce; } .icon-button:hover { background: #ffffff12; } a { color: #baaaff; } }
+        @media (max-width: 640px) { .panel { padding: 10px; border-radius: 14px; } .card { padding: 9px 0; } }
+        @media (forced-colors: active) { .panel, .chip, .term-tooltip { color: CanvasText; background: Canvas; border-color: CanvasText; box-shadow: none; } .muted { color: CanvasText; } .icon-button:hover { background: Highlight; color: HighlightText; } }
         @media (prefers-reduced-motion: no-preference) { .chip.show { animation: pop .18s ease-out; } @keyframes pop { from { transform: scale(.92); opacity: .5; } } }
       </style>
       <div class="wrap">
@@ -397,14 +398,15 @@
       ui.host.dataset.placement = "waiting-for-composer";
       return;
     }
+    syncVisualTheme(anchor);
     const rect = anchor.getBoundingClientRect();
     const gap = 12;
     const edge = 12;
     const available = Math.floor(window.innerWidth - rect.right - gap - edge);
     const hasRightRail = available >= (userCollapsed ? 96 : 240);
     const width = hasRightRail
-      ? (userCollapsed ? Math.min(140, available) : Math.min(340, Math.max(240, available)))
-      : Math.min(340, rect.width, window.innerWidth - edge * 2);
+      ? (userCollapsed ? Math.min(140, available) : Math.min(320, Math.max(240, available)))
+      : Math.min(320, rect.width, window.innerWidth - edge * 2);
     const left = hasRightRail
       ? rect.right + gap
       : Math.max(edge, Math.min(rect.right - width, window.innerWidth - width - edge));
@@ -424,6 +426,72 @@
     ui.wrap.style.top = `${top}px`;
     ui.host.dataset.placement = hasRightRail ? "composer-right" : "composer-above";
     ui.host.dataset.anchorTag = anchor.tagName.toLowerCase();
+  }
+
+  function syncVisualTheme(anchor) {
+    const surface = composedBackground(anchor);
+    const anchorStyle = getComputedStyle(anchor);
+    const pageStyle = getComputedStyle(document.body || document.documentElement);
+    let textColor = parseColor(anchorStyle.color) || parseColor(pageStyle.color);
+    const dark = relativeLuminance(surface) < 0.42;
+    if (!textColor || contrastRatio(surface, textColor) < 3) textColor = dark ? { r: 245, g: 245, b: 245, a: 1 } : { r: 28, g: 28, b: 28, a: 1 };
+    const fontSize = Math.min(14, Math.max(12, Number.parseFloat(anchorStyle.fontSize) || 13));
+    ui.host.style.setProperty("--akx-surface", colorString(surface));
+    ui.host.style.setProperty("--akx-text", colorString(textColor));
+    ui.host.style.setProperty("--akx-muted", colorString({ ...textColor, a: 0.68 }));
+    ui.host.style.setProperty("--akx-border", colorString({ ...textColor, a: dark ? 0.24 : 0.16 }));
+    ui.host.style.setProperty("--akx-hover", colorString({ ...textColor, a: 0.08 }));
+    ui.host.style.setProperty("--akx-font-family", anchorStyle.fontFamily || pageStyle.fontFamily || "system-ui, sans-serif");
+    ui.host.style.setProperty("--akx-font-size", `${fontSize}px`);
+    ui.host.style.setProperty("--akx-color-scheme", dark ? "dark" : "light");
+    ui.host.dataset.theme = dark ? "dark" : "light";
+  }
+
+  function composedBackground(node) {
+    const darkPreference = matchMedia("(prefers-color-scheme: dark)").matches;
+    let result = darkPreference ? { r: 32, g: 32, b: 32, a: 1 } : { r: 255, g: 255, b: 255, a: 1 };
+    const layers = [];
+    for (let current = node; current instanceof Element; current = current.parentElement) {
+      const color = parseColor(getComputedStyle(current).backgroundColor);
+      if (color?.a) layers.push(color);
+    }
+    for (const layer of layers.reverse()) result = compositeColor(layer, result);
+    return { ...result, a: 1 };
+  }
+
+  function parseColor(value) {
+    const numbers = String(value || "").match(/[\d.]+/g)?.map(Number);
+    if (!numbers || numbers.length < 3) return null;
+    return { r: numbers[0], g: numbers[1], b: numbers[2], a: numbers[3] ?? 1 };
+  }
+
+  function compositeColor(foreground, background) {
+    const alpha = foreground.a + background.a * (1 - foreground.a);
+    if (!alpha) return { r: 0, g: 0, b: 0, a: 0 };
+    return {
+      r: (foreground.r * foreground.a + background.r * background.a * (1 - foreground.a)) / alpha,
+      g: (foreground.g * foreground.a + background.g * background.a * (1 - foreground.a)) / alpha,
+      b: (foreground.b * foreground.a + background.b * background.a * (1 - foreground.a)) / alpha,
+      a: alpha
+    };
+  }
+
+  function colorString(color) {
+    return `rgba(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)}, ${Number(color.a ?? 1).toFixed(3)})`;
+  }
+
+  function relativeLuminance(color) {
+    const channel = (value) => {
+      const normalized = value / 255;
+      return normalized <= 0.03928 ? normalized / 12.92 : ((normalized + 0.055) / 1.055) ** 2.4;
+    };
+    return channel(color.r) * 0.2126 + channel(color.g) * 0.7152 + channel(color.b) * 0.0722;
+  }
+
+  function contrastRatio(first, second) {
+    const lighter = Math.max(relativeLuminance(first), relativeLuminance(second));
+    const darker = Math.min(relativeLuminance(first), relativeLuminance(second));
+    return (lighter + 0.05) / (darker + 0.05);
   }
 
   function syncAnchorObserver(anchor) {
