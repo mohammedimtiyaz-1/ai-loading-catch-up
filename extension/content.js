@@ -16,6 +16,7 @@
   let anchorObserver = null;
   let observedAnchor = null;
   let userCollapsed = false;
+  let userClosed = false;
   let baselineUserNodes = new WeakSet();
   let state = freshState();
   let ui = null;
@@ -252,6 +253,7 @@
     clearTimeout(inlineTimer);
     clearInlineAnnotations();
     userCollapsed = false;
+    userClosed = false;
     baseline();
     render();
   }
@@ -281,7 +283,9 @@
         .panel.open { display: block; }
         .header { display: flex; justify-content: space-between; align-items: center; margin: 0 0 8px; }
         h2 { font-size: 14px; margin: 0; }
-        .close { border: 0; background: transparent; cursor: pointer; font-size: 20px; line-height: 1; }
+        .header-actions { display: flex; align-items: center; gap: 2px; }
+        .icon-button { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; color: inherit; background: transparent; cursor: pointer; font-size: 18px; line-height: 1; }
+        .icon-button:hover { background: #0000000d; }
         .card { padding: 11px 0; border-top: 1px solid #ece8f2; }
         .card:first-of-type { border-top: 0; }
         h3 { font-size: 13px; margin: 0 0 4px; }
@@ -291,13 +295,13 @@
         .term-tooltip { display: none; position: fixed; z-index: 2147483647; width: min(290px, calc(100vw - 24px)); box-sizing: border-box; padding: 10px 12px; border: 1px solid #d9d4e8; border-radius: 10px; color: #17151f; background: #fff; box-shadow: 0 10px 34px #0004; font: 12px/1.4 system-ui, sans-serif; pointer-events: none; }
         .term-tooltip.show { display: block; }
         button:focus-visible, a:focus-visible { outline: 3px solid #ffb000; outline-offset: 2px; }
-        @media (prefers-color-scheme: dark) { .panel, .term-tooltip { background: #24212d; color: #f7f4ff; border-color: #494354; } .card { border-color: #494354; } .muted { color: #c6bfce; } a { color: #baaaff; } }
+        @media (prefers-color-scheme: dark) { .panel, .term-tooltip { background: #24212d; color: #f7f4ff; border-color: #494354; } .card { border-color: #494354; } .muted { color: #c6bfce; } .icon-button:hover { background: #ffffff12; } a { color: #baaaff; } }
         @media (prefers-reduced-motion: no-preference) { .chip.show { animation: pop .18s ease-out; } @keyframes pop { from { transform: scale(.92); opacity: .5; } } }
       </style>
       <div class="wrap">
         <button class="chip" type="button" aria-expanded="false" aria-haspopup="dialog">0 terms</button>
         <section class="panel" role="dialog" aria-modal="false" aria-labelledby="tk-title">
-          <div class="header"><h2 id="tk-title">AI Chat Keyword Explainer</h2><button class="close" type="button" aria-label="Collapse explanations">×</button></div>
+          <div class="header"><h2 id="tk-title">AI Chat Keyword Explainer</h2><div class="header-actions"><button class="minimize icon-button" type="button" aria-label="Minimize explanations">−</button><button class="close icon-button" type="button" aria-label="Close explanations">×</button></div></div>
           <div class="cards" aria-live="polite"></div>
         </section>
         <aside class="term-tooltip" role="tooltip"></aside>
@@ -305,21 +309,35 @@
     document.documentElement.append(host);
     const chip = shadow.querySelector(".chip");
     const panel = shadow.querySelector(".panel");
+    const minimize = shadow.querySelector(".minimize");
     const close = shadow.querySelector(".close");
     chip.addEventListener("click", () => setOpen(true, true, true));
-    close.addEventListener("click", () => setOpen(false, true, true));
+    minimize.addEventListener("click", () => setOpen(false, true, true));
+    close.addEventListener("click", closePanel);
     shadow.addEventListener("keydown", (event) => { if (event.key === "Escape" && panel.classList.contains("open")) setOpen(false, true, true); });
     function setOpen(open, moveFocus = true, userAction = false) {
       if (userAction) userCollapsed = !open;
+      userClosed = false;
       panel.classList.toggle("open", open);
       chip.classList.toggle("panel-open", open);
       chip.classList.toggle("show", !open);
       chip.setAttribute("aria-expanded", String(open));
+      host.dataset.uiState = open ? "expanded" : "minimized";
       if (moveFocus) {
-        if (open) close.focus(); else chip.focus();
+        if (open) minimize.focus(); else chip.focus();
       }
     }
-    ui = { host, shadow, chip, panel, cards: shadow.querySelector(".cards"), wrap: shadow.querySelector(".wrap"), tooltip: shadow.querySelector(".term-tooltip"), setOpen };
+    function closePanel() {
+      userClosed = true;
+      userCollapsed = false;
+      panel.classList.remove("open");
+      chip.classList.remove("show", "panel-open");
+      chip.setAttribute("aria-expanded", "false");
+      host.dataset.uiState = "closed";
+      shadow.querySelector(".wrap").style.visibility = "hidden";
+      findComposer()?.focus();
+    }
+    ui = { host, shadow, chip, panel, minimize, close, cards: shadow.querySelector(".cards"), wrap: shadow.querySelector(".wrap"), tooltip: shadow.querySelector(".term-tooltip"), setOpen, closePanel };
     document.addEventListener("pointerover", showInlineTooltip, true);
     document.addEventListener("pointerout", hideInlineTooltip, true);
     document.addEventListener("focusin", showInlineTooltip, true);
@@ -350,7 +368,7 @@
     ui.host.dataset.termCount = String(count);
     ui.chip.textContent = count ? `${count} ${count === 1 ? "term" : "terms"}` : "Keyword Explainer";
     ui.cards.replaceChildren(...state.slots.map(cardFor));
-    ui.setOpen(!userCollapsed, false);
+    if (!userClosed) ui.setOpen(!userCollapsed, false);
     schedulePosition();
   }
 
@@ -364,6 +382,11 @@
 
   function positionBesideContent() {
     if (!ui) return;
+    if (userClosed) {
+      ui.wrap.style.visibility = "hidden";
+      ui.host.dataset.placement = "closed";
+      return;
+    }
     const pageZoom = Number.parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     ui.host.style.zoom = String(1 / pageZoom);
     const composer = findComposer();

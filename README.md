@@ -1,12 +1,12 @@
 # AI Chat Keyword Explainer
 
-AI Chat Keyword Explainer is a local Chrome extension that explains difficult concepts while the user types and waits for an AI-chat answer. Version 0.4.0 opens automatically when a supported chat composer appears. It aligns 12 px to the composer's right when space permits and moves above it on narrow layouts. After an answer stabilizes, it underlines up to five additional Tavily-backed concepts and shows a one-line explanation on hover or keyboard focus.
+AI Chat Keyword Explainer is a local Chrome extension that explains difficult concepts while the user types and waits for an AI-chat answer. Version 0.4.1 opens automatically when a supported chat composer appears and remains expanded through response generation. It aligns 12 px to the composer's right when space permits and moves above it on narrow layouts. After an answer stabilizes, it underlines up to five additional Tavily-backed concepts and shows a one-line explanation on hover or keyboard focus.
 
 ![AI Chat Keyword Explainer showing five underlined answer concepts and a Tavily-backed hover explanation](docs/screenshots/ai-loading-catch-up-inline-tavily.png)
 
 ![The explanation panel automatically aligned to the right edge and top edge of the visible chat composer](docs/screenshots/ai-loading-catch-up-composer-anchor.png)
 
-Before typing, the panel explains what it will do. The close control collapses it to a small tab until reopened; changing conversations expands it again. The extension analyzes the composer after a short pause while typing. Cached terms appear immediately, and complete unknown concepts can begin online resolution before submission when Online lookup is enabled.
+Before typing, the panel shows its title. The minimize control collapses it to a small tab until reopened. The close control dismisses it for the current conversation; changing conversations expands it again. The extension analyzes the composer after a short pause while typing. Cached terms appear immediately, and complete unknown concepts can begin online resolution before submission when Online lookup is enabled.
 
 Answer annotations appear only after the streamed text remains stable. The extension skips links, code, controls, and editable content when adding underlines. Tavily requests contain only candidate terms, domains, and short meaning hints; the transcript remains in the page.
 

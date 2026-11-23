@@ -1,6 +1,6 @@
 # Verification report
 
-Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `81ce09a4254521dd6305047cd89e0500cdd4883377dc6be789626063dc75f300`.
+Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled Chromium. Artifact SHA-256: `f7e22381d9a6a56c092e20f2e427a1291d59bae7282f1462cdd44732ac78d6e9`.
 
 ## Automated evidence
 
@@ -12,13 +12,13 @@ Tested 23 November 2026 on macOS with Node 22.14.0 and Playwright 1.56.1 bundled
 | Streaming | two question cards remained while the streamed answer added vector database as the third | Pass |
 | Lifecycle | regeneration, route navigation, disable/re-enable and duplicate prevention | Pass |
 | Accessibility | keyboard opening, Escape, focus restoration, visible popover at 200% page zoom | Pass |
-| Cached latency | submitted RAG question to visible two-term panel | 91 ms observed; target was 300 ms |
+| Cached latency | submitted RAG question to visible two-term panel | 87 ms observed; target was 300 ms |
 | Live Tavily lookup | `differential privacy` through the application resolver | resolved with a short explanation and supporting source; immediate repeat returned `cache: backend` |
 | Pre-submit lookup | typed `federated learning framework` without submitting | extension showed one sourced Tavily-backed card while the simulator still contained zero user messages |
 | Answer annotations | completed RAG answer with deterministic Tavily resolver responses | five answer concepts were underlined; hover exposed a one-line tooltip |
 | Composer anchoring | representative ChatGPT, Claude, and Copilot input shells | panel opened automatically with its top edge aligned to the composer and its left edge exactly 12 px to the right |
 | Delayed and narrow composers | delayed ChatGPT mount, 240/300/340 px adaptive widths, constrained viewport | title-only panel opened after mount; constrained layout moved above and remained clear of the input |
-| Panel state | collapse, reopen, Escape, focus restoration, route change | collapsed tab remained beside the composer and a new conversation restored the expanded title-only panel |
+| Panel state | persistent expansion, minimize, reopen, close, Escape, focus restoration, route change | response streaming preserved the open panel; minimize produced a tab; close dismissed it; a new conversation restored the expanded title-only panel |
 | Package | ZIP integrity and direct unpacked files | Pass |
 | Dependencies | `npm audit --omit=dev` | 0 vulnerabilities |
 

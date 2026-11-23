@@ -56,6 +56,9 @@ test("question terms and streaming answer appear in the installed extension", as
   await expect(host.locator("h3").filter({ hasText: "Hallucination" })).toHaveCount(1);
   await expect(chip).toHaveText("3 terms", { timeout: 5000 });
   await expect(host.locator("h3").filter({ hasText: "Vector database" })).toHaveCount(1);
+  await page.waitForTimeout(700);
+  await expect(host.locator(".panel")).toBeVisible();
+  await expect(host).toHaveAttribute("data-ui-state", "expanded");
   await page.close();
 });
 
@@ -220,7 +223,7 @@ test("completed answers underline five Tavily-backed terms with hover explanatio
   await context.unroute("http://127.0.0.1:4311/v1/definitions/resolve");
 });
 
-test("popover supports Escape, focus restoration, regeneration, navigation and zoom", async () => {
+test("panel stays open, minimizes, closes, and resets on navigation", async () => {
   const page = await context.newPage();
   await page.goto("http://127.0.0.1:4311/");
   await page.locator("#send").click();
@@ -231,13 +234,14 @@ test("popover supports Escape, focus restoration, regeneration, navigation and z
   const panelBox = await host.locator(".panel").boundingBox();
   const composerBox = await page.locator("#question").boundingBox();
   expect(panelBox.y + panelBox.height).toBeLessThanOrEqual(composerBox.y - 11);
-  await host.locator(".close").click();
+  await host.locator(".minimize").click();
   await expect(host.locator(".panel")).toBeHidden();
   await expect(chip).toBeVisible();
   await expect(chip).toBeFocused();
+  await expect(host).toHaveAttribute("data-ui-state", "minimized");
   await chip.click();
-  await expect(host.locator(".close")).toBeFocused();
-  await host.locator(".close").press("Escape");
+  await expect(host.locator(".minimize")).toBeFocused();
+  await host.locator(".minimize").press("Escape");
   await expect(chip).toBeFocused();
   await page.evaluate(() => { document.documentElement.style.zoom = "200%"; });
   await chip.evaluate((button) => button.click());
@@ -246,11 +250,16 @@ test("popover supports Escape, focus restoration, regeneration, navigation and z
   await page.locator("#regenerate").click();
   await expect(chip).toHaveText("3 terms", { timeout: 5000 });
   await page.evaluate(() => { document.documentElement.style.zoom = "100%"; });
+  await expect(host.locator(".panel")).toBeVisible();
   await host.locator(".close").click();
+  await expect(host).toHaveAttribute("data-ui-state", "closed");
+  await expect(host.locator(".panel")).toBeHidden();
+  await expect(chip).toBeHidden();
   await page.locator("#newConversation").click();
   await expect(host.locator(".panel")).toBeVisible({ timeout: 2000 });
   await expect(host.locator("h2")).toHaveText("AI Chat Keyword Explainer");
   await expect(chip).toBeHidden();
+  await expect(host).toHaveAttribute("data-ui-state", "expanded");
   await page.close();
 });
 
