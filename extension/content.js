@@ -3,7 +3,8 @@
   const glossary = globalThis.ThreeKeywordsGlossary || [];
   const UI_HOST_ID = "ai-loading-catch-up-root";
   const HIGHLIGHT_STYLE_ID = "ai-loading-catch-up-highlight-style";
-  const DRAFT_HIGHLIGHT_NAME = "ai-chat-keyword-explainer-draft";
+  const DRAFT_OVERLAY_ID = "ai-loading-catch-up-draft-overlay";
+  const DRAFT_TEXTAREA_OVERLAY_ID = "ai-loading-catch-up-textarea-overlay";
   const DEBOUNCE_MS = 3000;
   let settings = { enabled: true, onlineLookup: false };
   let observer = null;
@@ -20,6 +21,8 @@
   const inlineDefinitions = new WeakMap();
   const annotationTimers = new Map();
   let draftHighlightRanges = [];
+  let draftTextareaState = null;
+  let draftTextareaHighlights = [];
 
   function freshState() {
     return { exchangeId: null, questionRevision: 0, answerRevision: 0, slots: [], answerNode: null, answerText: "", ended: false, isDraft: false };
@@ -39,6 +42,10 @@
     observe();
     scheduleDraftProcessing(findComposer());
     document.addEventListener("input", onComposerInput, true);
+    document.addEventListener("scroll", renderDraftOverlay, true);
+    window.addEventListener("resize", renderDraftOverlay);
+    window.visualViewport?.addEventListener("resize", renderDraftOverlay);
+    window.visualViewport?.addEventListener("scroll", renderDraftOverlay);
     chrome.storage.onChanged.addListener(onSettingsChanged);
     routeTimer = setInterval(checkRoute, 700);
   }
@@ -235,6 +242,10 @@
     document.removeEventListener("focusout", hideInlineTooltip, true);
     document.removeEventListener("pointermove", showDraftTooltip, true);
     document.removeEventListener("keydown", hideTooltipOnEscape, true);
+    document.removeEventListener("scroll", renderDraftOverlay, true);
+    window.removeEventListener("resize", renderDraftOverlay);
+    window.visualViewport?.removeEventListener("resize", renderDraftOverlay);
+    window.visualViewport?.removeEventListener("scroll", renderDraftOverlay);
     document.getElementById(HIGHLIGHT_STYLE_ID)?.remove();
     ui?.host.remove();
     ui = null;
@@ -251,11 +262,35 @@
     const style = document.createElement("style");
     style.id = HIGHLIGHT_STYLE_ID;
     style.textContent = `
-      ::highlight(${DRAFT_HIGHLIGHT_NAME}) {
-        color: inherit;
+      #${DRAFT_OVERLAY_ID} {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483645;
+        pointer-events: none;
+      }
+      #${DRAFT_OVERLAY_ID} > span {
+        position: absolute;
+        box-sizing: border-box;
         background-color: rgba(124, 92, 255, 0.24);
-        text-decoration: underline dotted currentColor 1.5px;
-        text-underline-offset: 3px;
+        border-bottom: 1.5px dotted rgba(124, 92, 255, 0.95);
+        border-radius: 3px;
+      }
+      #${DRAFT_TEXTAREA_OVERLAY_ID} {
+        position: fixed;
+        z-index: 2147483645;
+        box-sizing: border-box;
+        overflow: hidden;
+        pointer-events: none;
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+        background: transparent;
+      }
+      #${DRAFT_TEXTAREA_OVERLAY_ID} .ai-keyword-draft-mark {
+        color: transparent;
+        -webkit-text-fill-color: transparent;
+        background-color: rgba(124, 92, 255, 0.24);
+        border-bottom: 1.5px dotted rgba(124, 92, 255, 0.95);
+        border-radius: 3px;
       }
     `;
     document.documentElement.append(style);
@@ -328,7 +363,7 @@
   }
 
   async function annotateComposer(composer, text, revision) {
-    if (!composer?.isContentEditable || !globalThis.CSS?.highlights || typeof globalThis.Highlight !== "function") return;
+    if (!composer?.isContentEditable && !composer?.matches?.("textarea")) return;
     const candidates = core.answerCandidates(text, 5, glossary);
     const available = candidates.filter((candidate) => candidate.definition);
     applyDraftDefinitions(composer, available);
@@ -351,11 +386,16 @@
 
   function applyDraftDefinitions(composer, candidates) {
     clearDraftHighlights();
+    if (composer.matches?.("textarea")) {
+      draftTextareaState = { composer, candidates };
+      renderTextareaOverlay();
+      return;
+    }
     for (const candidate of candidates) {
       const range = firstTextRange(composer, candidate.aliases);
       if (range) draftHighlightRanges.push({ range, definition: candidate.definition });
     }
-    if (draftHighlightRanges.length) CSS.highlights.set(DRAFT_HIGHLIGHT_NAME, new Highlight(...draftHighlightRanges.map((item) => item.range)));
+    renderDraftOverlay();
   }
 
   function firstTextRange(root, aliases) {
@@ -378,9 +418,98 @@
   }
 
   function clearDraftHighlights() {
-    globalThis.CSS?.highlights?.delete(DRAFT_HIGHLIGHT_NAME);
     draftHighlightRanges = [];
+    draftTextareaState = null;
+    draftTextareaHighlights = [];
+    document.getElementById(DRAFT_OVERLAY_ID)?.remove();
+    document.getElementById(DRAFT_TEXTAREA_OVERLAY_ID)?.remove();
     if (ui?.tooltip?.dataset.owner === "draft") ui.tooltip.classList.remove("show");
+  }
+
+  function renderDraftOverlay() {
+    if (draftTextareaState) {
+      renderTextareaOverlay();
+      return;
+    }
+    if (!draftHighlightRanges.length) {
+      document.getElementById(DRAFT_OVERLAY_ID)?.remove();
+      return;
+    }
+    let overlay = document.getElementById(DRAFT_OVERLAY_ID);
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = DRAFT_OVERLAY_ID;
+      overlay.setAttribute("aria-hidden", "true");
+      document.documentElement.append(overlay);
+    }
+    const boxes = [];
+    for (const { range } of draftHighlightRanges) {
+      for (const rect of range.getClientRects()) {
+        if (!rect.width || !rect.height) continue;
+        const box = document.createElement("span");
+        box.style.left = `${rect.left}px`;
+        box.style.top = `${rect.top}px`;
+        box.style.width = `${rect.width}px`;
+        box.style.height = `${rect.height}px`;
+        boxes.push(box);
+      }
+    }
+    overlay.replaceChildren(...boxes);
+  }
+
+  function renderTextareaOverlay() {
+    const composer = draftTextareaState?.composer;
+    const candidates = draftTextareaState?.candidates || [];
+    if (!composer?.isConnected || !candidates.length) {
+      document.getElementById(DRAFT_TEXTAREA_OVERLAY_ID)?.remove();
+      draftTextareaHighlights = [];
+      return;
+    }
+    let overlay = document.getElementById(DRAFT_TEXTAREA_OVERLAY_ID);
+    if (!overlay) {
+      overlay = document.createElement("div");
+      overlay.id = DRAFT_TEXTAREA_OVERLAY_ID;
+      overlay.setAttribute("aria-hidden", "true");
+      document.documentElement.append(overlay);
+    }
+    const rect = composer.getBoundingClientRect();
+    const style = getComputedStyle(composer);
+    Object.assign(overlay.style, {
+      left: `${rect.left}px`, top: `${rect.top}px`, width: `${rect.width}px`, height: `${rect.height}px`,
+      padding: style.padding, borderWidth: style.borderWidth, borderStyle: "solid", borderColor: "transparent",
+      borderRadius: style.borderRadius, font: style.font, lineHeight: style.lineHeight, letterSpacing: style.letterSpacing,
+      textAlign: style.textAlign, textIndent: style.textIndent, textTransform: style.textTransform,
+      whiteSpace: "pre-wrap", overflowWrap: "break-word", wordBreak: style.wordBreak, tabSize: style.tabSize
+    });
+    const text = composer.value || "";
+    const matches = [];
+    for (const candidate of candidates) {
+      for (const alias of [...new Set(candidate.aliases)].sort((a, b) => b.length - a.length)) {
+        const escaped = alias.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const match = new RegExp(`(^|[^a-z0-9])(${escaped})(?=$|[^a-z0-9])`, "i").exec(text);
+        if (!match) continue;
+        const start = match.index + match[1].length;
+        if (!matches.some((item) => start < item.end && start + match[2].length > item.start)) matches.push({ start, end: start + match[2].length, definition: candidate.definition });
+        break;
+      }
+    }
+    matches.sort((a, b) => a.start - b.start);
+    const content = document.createDocumentFragment();
+    draftTextareaHighlights = [];
+    let cursor = 0;
+    for (const match of matches) {
+      content.append(document.createTextNode(text.slice(cursor, match.start)));
+      const mark = document.createElement("span");
+      mark.className = "ai-keyword-draft-mark";
+      mark.textContent = text.slice(match.start, match.end);
+      content.append(mark);
+      draftTextareaHighlights.push({ mark, definition: match.definition });
+      cursor = match.end;
+    }
+    content.append(document.createTextNode(text.slice(cursor)));
+    overlay.replaceChildren(content);
+    overlay.scrollTop = composer.scrollTop;
+    overlay.scrollLeft = composer.scrollLeft;
   }
 
   function scheduleInlineAnnotations(node, text, delay) {
@@ -469,7 +598,15 @@
   }
 
   function showDraftTooltip(event) {
-    if (!draftHighlightRanges.length || !ui?.tooltip || event.target?.closest?.('[data-ai-loading-catch-up-term="true"]')) return;
+    if ((!draftHighlightRanges.length && !draftTextareaHighlights.length) || !ui?.tooltip || event.target?.closest?.('[data-ai-loading-catch-up-term="true"]')) return;
+    const textareaItem = draftTextareaHighlights.find(({ mark }) => {
+      const rect = mark.getBoundingClientRect();
+      return event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+    });
+    if (textareaItem) {
+      presentTooltip(textareaItem.mark.getBoundingClientRect(), textareaItem.definition, "draft", draftTextareaState?.composer);
+      return;
+    }
     const caret = document.caretPositionFromPoint?.(event.clientX, event.clientY);
     const fallback = !caret ? document.caretRangeFromPoint?.(event.clientX, event.clientY) : null;
     const node = caret?.offsetNode || fallback?.startContainer;

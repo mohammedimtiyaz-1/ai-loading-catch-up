@@ -28,6 +28,7 @@ test("uses inline explanations without rendering a separate panel", async () => 
   await page.locator("#question").fill("How does RAG reduce hallucinations?");
   await page.waitForTimeout(1000);
   await expect(page.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(0);
+  await expect(page.locator("#ai-loading-catch-up-textarea-overlay .ai-keyword-draft-mark")).toHaveCount(2, { timeout: 3500 });
   await expect(page.locator("#question")).toHaveValue("How does RAG reduce hallucinations?");
   await page.close();
 });
@@ -42,7 +43,7 @@ test("highlights technical terms in a ChatGPT draft after three quiet seconds", 
   const composer = page.locator("#mobile-composer-prompt");
   await composer.fill("Explain RAG tokens and semantic tuning.");
   await page.waitForTimeout(3200);
-  await expect.poll(() => page.evaluate(() => CSS.highlights.get("ai-chat-keyword-explainer-draft")?.size || 0)).toBeGreaterThanOrEqual(2);
+  await expect(page.locator("#ai-loading-catch-up-draft-overlay > span")).toHaveCount(2, { timeout: 4500 });
   await expect(composer).toHaveText("Explain RAG tokens and semantic tuning.");
   await expect(composer.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(0);
   await page.close();
