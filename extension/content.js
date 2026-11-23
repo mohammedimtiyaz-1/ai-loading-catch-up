@@ -11,6 +11,7 @@
   let draftTimer = null;
   let inlineTimer = null;
   let draftRevision = 0;
+  let lastDraftText = "";
   let positionFrame = null;
   let anchorObserver = null;
   let observedAnchor = null;
@@ -36,6 +37,7 @@
     baseline();
     if (settings.enabled) mount();
     observe();
+    scheduleDraftProcessing(findComposer());
     document.addEventListener("input", onComposerInput, true);
     document.addEventListener("scroll", schedulePosition, true);
     window.addEventListener("resize", schedulePosition);
@@ -121,20 +123,31 @@
   function handleMutations() {
     if (!settings.enabled) return;
     checkForQuestion();
+    scheduleDraftProcessing(findComposer());
     if (state.exchangeId && !state.isDraft) scheduleAnswerProcessing();
     schedulePosition();
   }
 
   function onComposerInput(event) {
     if (!settings.enabled) return;
-    const composer = event.target?.matches?.(selectors().composer) ? event.target : event.target?.closest?.(selectors().composer);
+    const composer = event.target?.matches?.(selectors().composer) ? event.target : event.target?.closest?.(selectors().composer) || findComposer();
     if (!composer) return;
+    scheduleDraftProcessing(composer);
+  }
+
+  function composerText(composer) {
+    return String(composer?.value ?? visibleText(composer)).replace(/\s+/g, " ").trim();
+  }
+
+  function scheduleDraftProcessing(composer) {
+    if (!composer || composerText(composer) === lastDraftText) return;
     clearTimeout(draftTimer);
     draftTimer = setTimeout(() => processDraft(composer), 450);
   }
 
   function processDraft(composer) {
-    const text = String(composer?.value ?? visibleText(composer)).replace(/\s+/g, " ").trim();
+    const text = composerText(composer);
+    lastDraftText = text;
     if (!text) {
       if (state.isDraft) { state = freshState(); render(); }
       return;
@@ -162,6 +175,7 @@
 
   function beginExchange(node, questionText) {
     clearTimeout(draftTimer);
+    lastDraftText = questionText.replace(/\s+/g, " ").trim();
     clearInlineAnnotations();
     const id = node.dataset.exchangeId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     state = { ...freshState(), exchangeId: id, questionRevision: 1 };
@@ -234,6 +248,7 @@
     if (location.href === route) return;
     route = location.href;
     state = freshState();
+    lastDraftText = "";
     clearTimeout(draftTimer);
     clearTimeout(inlineTimer);
     clearInlineAnnotations();

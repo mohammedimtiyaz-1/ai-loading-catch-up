@@ -81,6 +81,21 @@ test("draft terms appear before the question is submitted", async () => {
   await page.close();
 });
 
+test("ChatGPT DOM mutations update draft terms without a direct input event", async () => {
+  await context.route("https://chatgpt.com/**", (route) => route.fulfill({
+    contentType: "text/html",
+    body: '<!doctype html><style>.shell{position:fixed;left:180px;top:500px;width:620px;padding:16px;border:1px solid #aaa;border-radius:24px}</style><div class="shell" data-type="unified-composer"><div class="ProseMirror" role="textbox" contenteditable="true"><p><br></p></div></div>'
+  }));
+  const page = await context.newPage();
+  await page.goto("https://chatgpt.com/mutation-composer");
+  await page.locator(".ProseMirror").evaluate((node) => { node.querySelector("p").textContent = "How does RAG reduce hallucinations?"; });
+  const host = page.locator("#ai-loading-catch-up-root");
+  await expect(host.locator("h3").filter({ hasText: "RAG" })).toHaveCount(1, { timeout: 2000 });
+  await expect(host.locator("h3").filter({ hasText: "Hallucination" })).toHaveCount(1);
+  await page.close();
+  await context.unroute("https://chatgpt.com/**");
+});
+
 test("panel width adapts and narrow layouts move it above the composer", async () => {
   await context.route("https://chatgpt.com/**", (route) => route.fulfill({
     contentType: "text/html",
