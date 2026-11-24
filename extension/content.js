@@ -5,7 +5,10 @@
   const HIGHLIGHT_STYLE_ID = "ai-loading-catch-up-highlight-style";
   const DRAFT_OVERLAY_ID = "ai-loading-catch-up-draft-overlay";
   const DRAFT_TEXTAREA_OVERLAY_ID = "ai-loading-catch-up-textarea-overlay";
-  const DEBOUNCE_MS = 3000;
+  const DRAFT_DEBOUNCE_MS = 600;
+  const ANSWER_DEBOUNCE_MS = 900;
+  const MAX_INLINE_TERMS = 20;
+  const MAX_LOOKUP_TERMS = 3;
   let settings = { enabled: true, onlineLookup: false };
   let observer = null;
   let route = location.href;
@@ -124,7 +127,7 @@
     if (!composer || composerText(composer) === lastDraftText) return;
     clearTimeout(draftTimer);
     clearDraftHighlights();
-    draftTimer = setTimeout(() => processDraft(composer), DEBOUNCE_MS);
+    draftTimer = setTimeout(() => processDraft(composer), DRAFT_DEBOUNCE_MS);
   }
 
   function processDraft(composer) {
@@ -158,7 +161,7 @@
     const id = node.dataset.exchangeId || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     state = { ...freshState(), exchangeId: id, questionRevision: 1 };
     clearDraftHighlights();
-    scheduleInlineAnnotations(node, questionText, DEBOUNCE_MS);
+    scheduleInlineAnnotations(node, questionText, DRAFT_DEBOUNCE_MS);
   }
 
   function scheduleAnswerProcessing() {
@@ -188,7 +191,7 @@
     state.answerNode = node;
     state.answerText = text;
     state.answerRevision ||= 1;
-    scheduleInlineAnnotations(node, text, DEBOUNCE_MS);
+    scheduleInlineAnnotations(node, text, ANSWER_DEBOUNCE_MS);
   }
 
   function checkRoute() {
@@ -273,7 +276,7 @@
         position: absolute;
         box-sizing: border-box;
         background-color: rgba(124, 92, 255, 0.24);
-        border-bottom: 1.5px dotted rgba(124, 92, 255, 0.95);
+        border-bottom: 2px solid rgba(99, 68, 240, 0.95);
         border-radius: 3px;
       }
       #${DRAFT_TEXTAREA_OVERLAY_ID} {
@@ -290,7 +293,7 @@
         color: transparent;
         -webkit-text-fill-color: transparent;
         background-color: rgba(124, 92, 255, 0.24);
-        border-bottom: 1.5px dotted rgba(124, 92, 255, 0.95);
+        border-bottom: 2px solid rgba(99, 68, 240, 0.95);
         border-radius: 3px;
       }
     `;
@@ -365,10 +368,10 @@
 
   async function annotateComposer(composer, text, revision) {
     if (!composer?.isContentEditable && !composer?.matches?.("textarea")) return;
-    const candidates = core.answerCandidates(text, 5, glossary);
+    const candidates = core.answerCandidates(text, MAX_INLINE_TERMS, glossary);
     const available = candidates.filter((candidate) => candidate.definition);
     applyDraftDefinitions(composer, available);
-    const unresolved = candidates.filter((candidate) => !candidate.definition).slice(0, 3);
+    const unresolved = candidates.filter((candidate) => !candidate.definition).slice(0, MAX_LOOKUP_TERMS);
     if (!settings.onlineLookup || !unresolved.length) return;
     const response = await send({
       type: "definition:resolve",
@@ -529,13 +532,13 @@
 
   async function annotateMessage(node, text) {
     if (!node?.isConnected || visibleText(node) !== text) return;
-    const candidates = core.answerCandidates(text, 5, glossary);
+    const candidates = core.answerCandidates(text, MAX_INLINE_TERMS, glossary);
     if (!candidates.length) return;
     clearInlineAnnotations(node);
     for (const candidate of candidates) {
       if (candidate.definition) underlineFirstOccurrence(node, candidate.aliases, candidate.definition);
     }
-    const unresolved = candidates.filter((candidate) => !candidate.definition).slice(0, 3);
+    const unresolved = candidates.filter((candidate) => !candidate.definition).slice(0, MAX_LOOKUP_TERMS);
     if (!settings.onlineLookup || !unresolved.length) return;
     const response = await send({
       type: "definition:resolve",
@@ -575,7 +578,7 @@
         mark.dataset.aiLoadingCatchUpTerm = "true";
         mark.tabIndex = 0;
         mark.textContent = termText;
-        mark.style.textDecoration = "underline dotted currentColor 1.5px";
+        mark.style.textDecoration = "underline solid rgba(99, 68, 240, 0.95) 2px";
         mark.style.textUnderlineOffset = "3px";
         mark.style.backgroundColor = "rgba(124, 92, 255, 0.24)";
         mark.style.borderRadius = "3px";

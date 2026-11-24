@@ -1,12 +1,12 @@
 # AI Chat Keyword Explainer
 
-AI Chat Keyword Explainer is a local Chrome extension that explains technical concepts directly inside AI conversations. Version 0.5.3 removes the separate explanation window: eligible terms receive a visible tinted background and underline, and a compact one-line explanation appears on hover or keyboard focus. Semantic tuning, semantic search, and model drift now have built-in sourced definitions, so they work without Tavily or an online-lookup setting.
+AI Chat Keyword Explainer is a local Chrome extension that explains technical concepts directly inside AI conversations. Version 0.5.4 removes the separate explanation window: every eligible technical term receives a visible tinted background and solid underline, and a compact one-line explanation appears on hover or keyboard focus. Semantic tuning, semantic search, and model drift have built-in sourced definitions, so they work without Tavily or an online-lookup setting.
 
 ![AI Chat Keyword Explainer highlighting RAG and tokens with a compact hover explanation](docs/screenshots/ai-chat-keyword-explainer-v0.5.2-inline-tooltip.png)
 
 ![AI Chat Keyword Explainer showing five underlined answer concepts and a Tavily-backed hover explanation](docs/screenshots/ai-loading-catch-up-inline-tavily.png)
 
-The extension uses non-destructive visual overlays for both contenteditable and native textarea composers, so eligible draft terms become visible without changing the editor DOM or depending on the optional CSS Highlight API. Drafts, submitted questions, and streamed answers all wait for a three-second quiet period. Missing definitions are grouped into one request of at most three candidates per message, preventing repeated Tavily searches while the user types or while an answer streams. Ordinary conversational words remain excluded.
+The extension uses non-destructive visual overlays for both contenteditable and native textarea composers, so eligible draft terms become visible without changing the editor DOM or depending on the optional CSS Highlight API. Drafts and submitted questions wait 600 ms after typing stops; streamed answers wait 900 ms after the latest change. Up to 20 eligible terms are considered per message, while missing definitions remain grouped into one request of at most three candidates to control Tavily usage. Ordinary conversational words remain excluded.
 
 The extension skips links, code, controls, and editable content when adding underlines. Tavily requests contain only candidate terms, domains, and short meaning hints; the transcript remains in the page. Cached and curated definitions work without another provider request.
 

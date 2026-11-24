@@ -26,14 +26,14 @@ test("uses inline explanations without rendering a separate panel", async () => 
   await expect(host.locator(".term-tooltip")).toHaveCount(1);
   await expect(host.locator(".panel, .chip, .wrap")).toHaveCount(0);
   await page.locator("#question").fill("How does RAG reduce hallucinations?");
-  await page.waitForTimeout(1000);
+  await page.waitForTimeout(250);
   await expect(page.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(0);
-  await expect(page.locator("#ai-loading-catch-up-textarea-overlay .ai-keyword-draft-mark")).toHaveCount(2, { timeout: 3500 });
+  await expect(page.locator("#ai-loading-catch-up-textarea-overlay .ai-keyword-draft-mark")).toHaveCount(2, { timeout: 1500 });
   await expect(page.locator("#question")).toHaveValue("How does RAG reduce hallucinations?");
   await page.close();
 });
 
-test("highlights technical terms in a ChatGPT draft after three quiet seconds", async () => {
+test("highlights technical terms in a ChatGPT draft after a short quiet period", async () => {
   await context.route("https://chatgpt.com/**", (route) => route.fulfill({
     contentType: "text/html",
     body: '<!doctype html><div data-type="unified-composer"><div id="mobile-composer-prompt" role="textbox" contenteditable="true"><p><br></p></div></div>'
@@ -42,8 +42,7 @@ test("highlights technical terms in a ChatGPT draft after three quiet seconds", 
   await page.goto("https://chatgpt.com/draft-highlight");
   const composer = page.locator("#mobile-composer-prompt");
   await composer.fill("Explain RAG tokens and semantic tuning.");
-  await page.waitForTimeout(3200);
-  await expect(page.locator("#ai-loading-catch-up-draft-overlay > span")).toHaveCount(3, { timeout: 4500 });
+  await expect(page.locator("#ai-loading-catch-up-draft-overlay > span")).toHaveCount(3, { timeout: 1500 });
   await expect(composer).toHaveText("Explain RAG tokens and semantic tuning.");
   await expect(composer.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(0);
   await page.close();
@@ -60,8 +59,8 @@ test("matches the live ChatGPT textarea geometry and shows its tooltip", async (
   const composer = page.locator("#mobile-composer-prompt");
   await composer.fill("Explain RAG tokens and semantic tuning");
   const marks = page.locator("#ai-loading-catch-up-textarea-overlay .ai-keyword-draft-mark");
-  await expect(marks).toHaveCount(3, { timeout: 4500 });
-  await expect(page.locator("#ai-loading-catch-up-root")).toHaveAttribute("data-extension-version", "0.5.3");
+  await expect(marks).toHaveCount(3, { timeout: 1500 });
+  await expect(page.locator("#ai-loading-catch-up-root")).toHaveAttribute("data-extension-version", "0.5.4");
   await expect(page.locator("#ai-loading-catch-up-root")).toHaveAttribute("data-integration-mode", "textarea-overlay");
   await expect(page.locator("#ai-loading-catch-up-root")).toHaveAttribute("data-highlight-count", "3");
   const geometry = await page.evaluate(() => {
@@ -87,7 +86,7 @@ test("underlines submitted question terms and shows a compact tooltip", async ()
   await page.locator("#send").click();
   const question = page.locator('[data-role="user-message"]');
   const marks = question.locator('[data-ai-loading-catch-up-term="true"]');
-  await expect(marks).toHaveCount(2, { timeout: 5000 });
+  await expect(marks).toHaveCount(2, { timeout: 2500 });
   await expect(marks.first()).toHaveCSS("background-color", "rgba(124, 92, 255, 0.24)");
   await marks.first().hover();
   const tooltip = page.locator("#ai-loading-catch-up-root").locator(".term-tooltip");
@@ -107,7 +106,7 @@ test("underlines a built-in lower-complexity technical phrase", async () => {
   await page.locator("#question").fill("Explain semantic tuning.");
   await page.locator("#send").click();
   const mark = page.locator('[data-role="user-message"] [data-ai-loading-catch-up-term="true"]');
-  await expect(mark).toHaveText("semantic tuning", { timeout: 5000 });
+  await expect(mark).toHaveText("semantic tuning", { timeout: 2500 });
   await mark.hover();
   await expect(page.locator("#ai-loading-catch-up-root").locator(".term-tooltip")).toContainText("meaning-based relevance");
   await page.close();
@@ -121,7 +120,7 @@ test("waits for a streamed answer to stabilize before underlining it", async () 
   await page.waitForTimeout(700);
   await expect(answer.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(0);
   await expect(page.locator("#regenerate")).toBeEnabled({ timeout: 6000 });
-  await expect(answer.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(4, { timeout: 5000 });
+  await expect(answer.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(7, { timeout: 2500 });
   await page.close();
 });
 
@@ -130,13 +129,13 @@ test("keeps question and answer annotations independent across regeneration", as
   await page.goto("http://127.0.0.1:4311/");
   await page.locator("#send").click();
   const question = page.locator('[data-role="user-message"]');
-  await expect(question.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(2, { timeout: 5000 });
+  await expect(question.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(2, { timeout: 2500 });
   await expect(page.locator("#regenerate")).toBeEnabled({ timeout: 6000 });
   await page.locator("#regenerate").click();
   await expect(question.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(2);
   const answer = page.locator('[data-role="assistant-message"]');
   await expect(page.locator("#regenerate")).toBeEnabled({ timeout: 6000 });
-  await expect(answer.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(3, { timeout: 5000 });
+  await expect(answer.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(4, { timeout: 2500 });
   await page.close();
 });
 
@@ -145,7 +144,7 @@ test("ordinary conversational text receives no annotations", async () => {
   await page.goto("http://127.0.0.1:4311/");
   await page.locator("#question").fill("Please write a warm thank-you message.");
   await page.locator("#send").click();
-  await page.waitForTimeout(3200);
+  await page.waitForTimeout(1200);
   await expect(page.locator('[data-role="user-message"] [data-ai-loading-catch-up-term="true"]')).toHaveCount(0);
   await page.close();
 });
@@ -154,7 +153,7 @@ test("route changes clear annotations and keep only the tooltip host", async () 
   const page = await context.newPage();
   await page.goto("http://127.0.0.1:4311/");
   await page.locator("#send").click();
-  await expect(page.locator('[data-role="user-message"] [data-ai-loading-catch-up-term="true"]')).toHaveCount(2, { timeout: 5000 });
+  await expect(page.locator('[data-role="user-message"] [data-ai-loading-catch-up-term="true"]')).toHaveCount(2, { timeout: 2500 });
   await page.locator("#newConversation").click();
   await expect(page.locator('[data-ai-loading-catch-up-term="true"]')).toHaveCount(0);
   await expect(page.locator("#ai-loading-catch-up-root")).toHaveCount(1);

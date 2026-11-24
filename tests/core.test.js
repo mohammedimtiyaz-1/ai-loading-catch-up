@@ -85,3 +85,12 @@ test("answer extraction finds up to five useful concepts for inline explanations
   assert.ok(candidates.every((candidate) => candidate.aliases.length > 0));
   assert.ok(candidates.some((candidate) => candidate.definition?.oneLiner));
 });
+
+test("expanded inline extraction includes every eligible technical concept", async () => {
+  const { glossary, core } = await loadCore();
+  const text = "RAG uses embeddings in a vector database for retrieval and grounding within the model context to reduce hallucinations.";
+  const terms = core.answerCandidates(text, 20, glossary).map((candidate) => candidate.term.toLowerCase());
+  for (const expected of ["rag", "embedding", "vector database", "retrieval", "grounding", "ai context", "hallucination"]) {
+    assert.ok(terms.includes(expected), expected);
+  }
+});
